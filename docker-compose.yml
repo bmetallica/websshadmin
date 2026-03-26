@@ -1,6 +1,6 @@
 services:
   web-ssh:
-    image: 192.168.66.12:5000/web-ssh-client:latest
+    image: bmetallica/websshadmin:latest
     network_mode: host
     environment:
       - PORT=2222
