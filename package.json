@@ -1,0 +1,27 @@
+{
+  "name": "webssh-admin",
+  "version": "1.0.0",
+  "description": "Web-based SSH client with connection management",
+  "main": "server/index.js",
+  "scripts": {
+    "start": "node server/index.js",
+    "dev": "node --watch server/index.js"
+  },
+  "dependencies": {
+    "bcrypt": "^5.1.1",
+    "express-rate-limit": "^7.4.0",
+    "helmet": "^8.0.0",
+    "better-sqlite3": "^11.7.0",
+    "chokidar": "^4.0.3",
+    "cookie-parser": "^1.4.7",
+    "express": "^4.21.1",
+    "express-session": "^1.18.1",
+    "multer": "^1.4.5-lts.1",
+    "socket.io": "^4.8.1",
+    "ssh2": "^1.16.0",
+    "uuid": "^11.0.3"
+  },
+  "optionalDependencies": {
+    "ldapjs": "^3.0.7"
+  }
+}

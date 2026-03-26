@@ -1,0 +1,25 @@
+services:
+  web-ssh:
+    image: 192.168.66.12:5000/web-ssh-client:latest
+    network_mode: host
+    environment:
+      - PORT=2222
+      - DB_PATH=/app/data/database.sqlite
+      - SCRIPTS_PATH=/app/scripts
+      # SSO / Active Directory (optional - auf true setzen zum Aktivieren)
+      - AD_ENABLED=false
+      # - AD_URL=ldap://dc.example.com
+      # - AD_BASE_DN=dc=example,dc=com
+      # - AD_BIND_DN=cn=svc-webssh,ou=ServiceAccounts,dc=example,dc=com
+      # - AD_BIND_PASSWORD=
+      # - AD_USER_FILTER=(sAMAccountName={{username}})
+      # - AD_GROUP_FILTER=(member={{dn}})
+      # - AD_GROUP_MAP={"AD-Gruppe-Test":"test","AD-Gruppe-Prod":"prod"}
+      # - AD_DEFAULT_ROLE=user
+      # - AD_ADMIN_GROUPS=WebSSH-Admins
+    volumes:
+      - ./scripts:/app/scripts
+      - ./config:/app/config
+      - ./data:/app/data
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+    restart: always

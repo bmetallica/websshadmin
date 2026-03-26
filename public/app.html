@@ -1,0 +1,591 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <link rel="icon" type="image/svg+xml" href="/favicon.svg">
+  <title>webSSHadmin</title>
+  <link rel="stylesheet" href="/vendor/xterm.css">
+  <link rel="stylesheet" href="/css/main.css">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+</head>
+<body>
+  <!-- Header -->
+  <header id="header">
+    <div class="header-left">
+      <span class="logo">webSSHadmin</span>
+    </div>
+    <div class="tab-bar" id="tabBar">
+      <!-- Tabs rendered by tabs.js -->
+    </div>
+    <div class="header-right">
+      <div class="bookmark-wrapper">
+        <button class="btn-header" id="btnBookmarks" title="Bookmarks">&#9734;</button>
+        <div class="bookmark-dropdown" id="bookmarkDropdown">
+          <div class="bookmark-dropdown-header">
+            <span>Bookmarks</span>
+            <button class="btn-icon" id="btnAddBookmark" title="Bookmark hinzufuegen">+</button>
+          </div>
+          <div class="bookmark-list" id="bookmarkList"></div>
+        </div>
+      </div>
+      <button class="btn-header" id="btnPorts" title="Port Dashboard">&#128268;</button>
+      <button class="btn-header" id="btnFullscreen" title="Vollbild">&#x26F6;</button>
+      <button class="btn-header" id="btnSftp" title="SFTP Dateibrowser">&#128193;</button>
+      <div class="settings-wrapper">
+        <button class="btn-header" id="btnSettings" title="Einstellungen">&#9881;</button>
+        <div class="settings-dropdown" id="settingsDropdown">
+          <div class="settings-dropdown-header">Einstellungen</div>
+          <div class="settings-section">
+            <div class="settings-section-title">Darstellung</div>
+            <div class="theme-list" id="settingsThemeList"></div>
+          </div>
+          <div class="settings-section">
+            <div class="settings-section-title">Konto</div>
+            <div class="settings-item" id="settingsChangePassword">
+              <span class="settings-icon">&#128274;</span>
+              <span>Passwort ändern</span>
+            </div>
+            <div class="settings-item disabled" id="settingsUserManagement">
+              <span class="settings-icon">&#128101;</span>
+              <span>Benutzerverwaltung</span>
+            </div>
+            <div class="settings-item disabled" id="settingsGroupManagement">
+              <span class="settings-icon">&#128106;</span>
+              <span>Gruppenverwaltung</span>
+            </div>
+          </div>
+        </div>
+      </div>
+      <button class="btn-header" id="btnLogout" title="Logout">&#9211;</button>
+    </div>
+  </header>
+
+  <!-- Stats bar -->
+  <div id="statsBar" class="stats-bar">
+    <span id="statCpu" class="stat-badge">CPU: --</span>
+    <span id="statRam" class="stat-badge">RAM: --</span>
+    <span id="statDisk" class="stat-badge">Disk: --</span>
+    <span style="flex:1"></span>
+    <span id="statHost" class="stat-badge stat-host">Keine Verbindung</span>
+  </div>
+
+  <!-- Main layout -->
+  <div id="mainLayout">
+    <!-- Left sidebar: con_men -->
+    <aside id="sidebarLeft" class="sidebar sidebar-left">
+      <div class="sidebar-header">
+        <span>Verbindungen</span>
+        <button class="btn-icon" id="btnToggleLeft" title="Einklappen">&#9664;</button>
+      </div>
+      <div class="sidebar-search">
+        <input type="text" id="connectionSearch" placeholder="Suchen..." autocomplete="off">
+      </div>
+      <div class="sidebar-content" id="connectionList">
+        <!-- Filled by conmen.js -->
+      </div>
+      <div class="sidebar-footer">
+        <button class="btn-small" id="btnAddConnection">+ Neue Verbindung</button>
+      </div>
+    </aside>
+
+    <!-- Expand button left (visible when sidebar is collapsed) -->
+    <button class="sidebar-expand sidebar-expand-left" id="btnExpandLeft" title="Verbindungen einblenden" style="display:none">&#9654;</button>
+
+    <!-- Terminal area -->
+    <main id="terminalArea">
+      <div id="terminals">
+        <!-- Terminal containers rendered by terminal.js -->
+      </div>
+      <div id="noSession" class="no-session">
+        <p>Keine aktive Session</p>
+        <p>Waehle eine Verbindung aus der linken Seitenleiste oder erstelle eine neue.</p>
+      </div>
+    </main>
+
+    <!-- Right sidebar: skript_men -->
+    <aside id="sidebarRight" class="sidebar sidebar-right">
+      <div class="sidebar-header">
+        <span>Skripte</span>
+        <button class="btn-icon" id="btnToggleRight" title="Einklappen">&#9654;</button>
+      </div>
+      <div class="sidebar-content" id="scriptTree">
+        <!-- Filled by skriptmen.js -->
+      </div>
+      <div class="sidebar-footer">
+        <div id="scriptDropZone" class="drop-zone">Dateien hierher ziehen</div>
+      </div>
+    </aside>
+
+    <!-- Expand button right (visible when sidebar is collapsed) -->
+    <button class="sidebar-expand sidebar-expand-right" id="btnExpandRight" title="Skripte einblenden" style="display:none">&#9664;</button>
+  </div>
+
+  <!-- Port Dashboard Panel -->
+  <div id="portsPanel" class="ports-panel">
+    <div class="ports-header">
+      <span class="ports-title">Port Dashboard</span>
+      <div class="ports-tools">
+        <input type="text" id="portsSearch" class="ports-search" placeholder="Filter..." autocomplete="off">
+        <button class="sftp-nav-btn" id="btnPortsRefresh" title="Aktualisieren">&#8635;</button>
+        <button class="sftp-nav-btn sftp-close-btn" id="btnPortsClose" title="Schliessen">&times;</button>
+      </div>
+    </div>
+    <div class="ports-table-header">
+      <span class="ports-th-port">Port</span>
+      <span class="ports-th-bind">Bind</span>
+      <span class="ports-th-proto">Proto</span>
+      <span class="ports-th-process">Prozess</span>
+      <span class="ports-th-container">Container</span>
+    </div>
+    <div class="ports-list" id="portsList"></div>
+    <div class="ports-status" id="portsStatus">Bereit</div>
+  </div>
+
+  <!-- SFTP Browser Panel (slides up from bottom) -->
+  <div id="sftpPanel" class="sftp-panel">
+    <div class="sftp-header">
+      <div class="sftp-nav">
+        <button class="sftp-nav-btn" id="btnSftpBack" title="Zurück">&#9664;</button>
+        <button class="sftp-nav-btn" id="btnSftpUp" title="Übergeordneter Ordner">&#9650;</button>
+        <button class="sftp-nav-btn" id="btnSftpHome" title="Home">&#127968;</button>
+        <button class="sftp-nav-btn" id="btnSftpRefresh" title="Aktualisieren">&#8635;</button>
+      </div>
+      <input type="text" class="sftp-path-input" id="sftpPath" value="/" placeholder="Pfad...">
+      <div class="sftp-tools">
+        <button class="sftp-nav-btn" id="btnSftpNewFile" title="Neue Datei">&#128196;+</button>
+        <button class="sftp-nav-btn" id="btnSftpMkdir" title="Neuer Ordner">&#128193;+</button>
+        <button class="sftp-nav-btn" id="btnSftpUpload" title="Hochladen">&#11014;</button>
+        <input type="file" id="sftpUploadInput" multiple style="display:none">
+        <button class="sftp-nav-btn sftp-close-btn" id="btnSftpClose" title="Schliessen">&times;</button>
+      </div>
+    </div>
+    <div class="sftp-table-header">
+      <span class="sftp-th-icon"></span>
+      <span class="sftp-th-name">Name</span>
+      <span class="sftp-th-size">Größe</span>
+      <span class="sftp-th-date">Geändert</span>
+      <span class="sftp-th-mode">Rechte</span>
+      <span class="sftp-th-actions">Aktionen</span>
+    </div>
+    <div class="sftp-file-list" id="sftpFileList">
+      <!-- Filled by sftp.js -->
+    </div>
+    <div class="sftp-status" id="sftpStatus">Bereit</div>
+  </div>
+
+  <!-- Footer: quick_con -->
+  <footer id="footer">
+    <div class="quick-bar" id="quickBar">
+      <button class="btn-quick-add" id="btnAddCategory" title="Kategorie hinzufuegen">+</button>
+      <div id="quickCategories">
+        <!-- Filled by quickcon.js -->
+      </div>
+    </div>
+  </footer>
+
+  <!-- Password change modal -->
+  <div id="modalOverlay" class="modal-overlay" style="display:none">
+    <div class="modal">
+      <h3>Passwort aendern</h3>
+      <form id="changePasswordForm">
+        <div class="form-group">
+          <label>Aktuelles Passwort</label>
+          <input type="password" id="oldPassword" required>
+        </div>
+        <div class="form-group">
+          <label>Neues Passwort</label>
+          <input type="password" id="newPassword" required>
+        </div>
+        <div class="modal-actions">
+          <button type="button" class="btn-cancel" id="btnCancelPassword">Abbrechen</button>
+          <button type="submit" class="btn-confirm">Speichern</button>
+        </div>
+        <div class="error" id="passwordError" style="display:none"></div>
+      </form>
+    </div>
+  </div>
+
+  <!-- Connection editor modal -->
+  <div id="connModalOverlay" class="modal-overlay" style="display:none">
+    <div class="modal modal-wide">
+      <h3 id="connModalTitle">Neue Verbindung</h3>
+      <form id="connForm">
+        <input type="hidden" id="connId">
+        <div class="form-row">
+          <div class="form-group">
+            <label>Name</label>
+            <input type="text" id="connName" required>
+          </div>
+          <div class="form-group">
+            <label>Host / IP</label>
+            <input type="text" id="connHost" required>
+          </div>
+        </div>
+        <div class="form-row">
+          <div class="form-group">
+            <label>Port</label>
+            <input type="number" id="connPort" value="22">
+          </div>
+          <div class="form-group">
+            <label>Username</label>
+            <input type="text" id="connUsername" required>
+          </div>
+        </div>
+        <div class="form-row">
+          <div class="form-group">
+            <label>Auth-Methode</label>
+            <select id="connAuthMethod">
+              <option value="password">Passwort</option>
+              <option value="key">Private Key</option>
+            </select>
+          </div>
+          <div class="form-group" id="connPasswordGroup">
+            <label>Passwort</label>
+            <input type="password" id="connPassword">
+          </div>
+        </div>
+        <div id="connKeyGroup" style="display:none">
+          <div class="form-group">
+            <label>Private Key (PEM)</label>
+            <textarea id="connPrivateKey" rows="4"></textarea>
+          </div>
+          <div class="form-group">
+            <label>Passphrase (optional)</label>
+            <input type="password" id="connPassphrase">
+          </div>
+        </div>
+        <div class="form-group">
+          <label><input type="checkbox" id="connTunnelEnabled"> SSH Tunnel aktivieren</label>
+        </div>
+        <div id="tunnelConfig" style="display:none">
+          <div class="form-row">
+            <div class="form-group">
+              <label>Lokaler Port</label>
+              <input type="number" id="connTunnelLocalPort">
+            </div>
+            <div class="form-group">
+              <label>Remote Host</label>
+              <input type="text" id="connTunnelRemoteHost" value="127.0.0.1">
+            </div>
+            <div class="form-group">
+              <label>Remote Port</label>
+              <input type="number" id="connTunnelRemotePort">
+            </div>
+          </div>
+        </div>
+        <div class="modal-actions">
+          <button type="button" class="btn-cancel" id="btnCancelConn">Abbrechen</button>
+          <button type="button" class="btn-danger" id="btnDeleteConn" style="display:none">Loeschen</button>
+          <button type="submit" class="btn-confirm">Speichern</button>
+        </div>
+        <div class="error" id="connError" style="display:none"></div>
+      </form>
+    </div>
+  </div>
+
+  <!-- SFTP file editor modal -->
+  <div id="editorModalOverlay" class="modal-overlay" style="display:none">
+    <div class="modal modal-editor">
+      <div class="editor-header">
+        <div class="editor-title-row">
+          <h3 id="editorTitle">Datei bearbeiten</h3>
+          <select id="editorMode" class="editor-mode-select" title="Syntax"></select>
+        </div>
+        <span id="editorFilePath" class="editor-filepath"></span>
+      </div>
+      <div id="editorContent" class="editor-ace-container"></div>
+      <div class="modal-actions">
+        <button type="button" class="btn-cancel" id="btnEditorCancel">Abbrechen</button>
+        <button type="button" class="btn-confirm" id="btnEditorSave">Speichern</button>
+      </div>
+      <div class="error" id="editorError" style="display:none"></div>
+    </div>
+  </div>
+
+  <!-- Bookmark editor modal -->
+  <div id="bmModalOverlay" class="modal-overlay" style="display:none">
+    <div class="modal">
+      <h3 id="bmModalTitle">Neuer Bookmark</h3>
+      <form id="bmForm">
+        <input type="hidden" id="bmId">
+        <div class="form-group">
+          <label>Name</label>
+          <input type="text" id="bmName" required>
+        </div>
+        <div class="form-group">
+          <label>URL</label>
+          <input type="text" id="bmUrl" required placeholder="https://...">
+        </div>
+        <div class="modal-actions">
+          <button type="button" class="btn-cancel" id="btnCancelBm">Abbrechen</button>
+          <button type="button" class="btn-danger" id="btnDeleteBm" style="display:none">Loeschen</button>
+          <button type="submit" class="btn-confirm">Speichern</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- Quick command category modal -->
+  <div id="catModalOverlay" class="modal-overlay" style="display:none">
+    <div class="modal">
+      <h3 id="catModalTitle">Neue Kategorie</h3>
+      <form id="catForm">
+        <input type="hidden" id="catId">
+        <div class="form-group">
+          <label>Name</label>
+          <input type="text" id="catName" required>
+        </div>
+        <div class="modal-actions">
+          <button type="button" class="btn-cancel" id="btnCancelCat">Abbrechen</button>
+          <button type="submit" class="btn-confirm">Speichern</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- Quick command modal -->
+  <div id="cmdModalOverlay" class="modal-overlay" style="display:none">
+    <div class="modal">
+      <h3 id="cmdModalTitle">Neuer Befehl</h3>
+      <form id="cmdForm">
+        <input type="hidden" id="cmdId">
+        <input type="hidden" id="cmdCategoryId">
+        <div class="form-group">
+          <label>Name</label>
+          <input type="text" id="cmdName" required>
+        </div>
+        <div class="form-group">
+          <label>Befehl</label>
+          <input type="text" id="cmdCommand" required>
+        </div>
+        <div class="modal-actions">
+          <button type="button" class="btn-cancel" id="btnCancelCmd">Abbrechen</button>
+          <button type="submit" class="btn-confirm">Speichern</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- User management modal -->
+  <div id="userModalOverlay" class="modal-overlay" style="display:none">
+    <div class="modal modal-wide">
+      <div class="user-modal-header">
+        <h3>Benutzerverwaltung</h3>
+        <button class="btn-icon" id="btnCloseUserModal" title="Schliessen">&times;</button>
+      </div>
+      <div class="user-modal-body">
+        <div class="user-list-panel">
+          <div class="user-list-header">
+            <span>Benutzer</span>
+            <button class="btn-icon" id="btnAddUser" title="Neuer Benutzer">+</button>
+          </div>
+          <div class="user-list" id="userList"></div>
+        </div>
+        <div class="user-editor-panel" id="userEditorPanel" style="display:none">
+          <h4 id="userEditorTitle">Neuer Benutzer</h4>
+          <form id="userForm">
+            <input type="hidden" id="userEditId">
+            <div class="form-group">
+              <label>Benutzername</label>
+              <input type="text" id="userEditName" required autocomplete="off">
+            </div>
+            <div class="form-group">
+              <label>Passwort <small id="userPasswordHint"></small></label>
+              <input type="password" id="userEditPassword" autocomplete="new-password">
+            </div>
+            <div class="form-group">
+              <label>Rolle</label>
+              <select id="userEditRole">
+                <option value="admin">Admin</option>
+                <option value="user">User</option>
+                <!-- Viewer role removed - sharing is now per-session -->
+              </select>
+            </div>
+            <div class="modal-actions">
+              <button type="button" class="btn-cancel" id="btnCancelUser">Abbrechen</button>
+              <button type="button" class="btn-danger" id="btnDeleteUser" style="display:none">Löschen</button>
+              <button type="submit" class="btn-confirm">Speichern</button>
+            </div>
+            <div class="error" id="userError" style="display:none"></div>
+          </form>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Share modal -->
+  <div id="shareModalOverlay" class="modal-overlay" style="display:none">
+    <div class="modal modal-share">
+      <div class="user-modal-header">
+        <h3>Session teilen</h3>
+        <button class="btn-icon" id="btnCloseShareModal" title="Schliessen">&times;</button>
+      </div>
+      <div class="share-create-row">
+        <select id="shareRole">
+          <option value="viewer">Viewer (nur zusehen)</option>
+          <option value="coworker">Coworker (gemeinsam arbeiten)</option>
+        </select>
+        <input type="text" id="shareLabel" placeholder="Bezeichnung (optional)" autocomplete="off">
+        <button class="btn-confirm" id="btnCreateShare">Freigabe erstellen</button>
+      </div>
+      <div class="share-list" id="shareList"></div>
+    </div>
+  </div>
+
+  <!-- Group management modal -->
+  <div id="groupModalOverlay" class="modal-overlay" style="display:none">
+    <div class="modal modal-wide">
+      <div class="user-modal-header">
+        <h3>Gruppenverwaltung</h3>
+        <button class="btn-icon" id="btnCloseGroupModal" title="Schliessen">&times;</button>
+      </div>
+      <div class="user-modal-body">
+        <div class="user-list-panel">
+          <div class="user-list-header">
+            <span>Gruppen</span>
+            <button class="btn-icon" id="btnAddGroup" title="Neue Gruppe">+</button>
+          </div>
+          <div class="user-list" id="groupList"></div>
+        </div>
+        <div class="user-editor-panel" id="groupEditorPanel" style="display:none">
+          <h4 id="groupEditorTitle">Neue Gruppe</h4>
+          <form id="groupForm">
+            <input type="hidden" id="groupEditId">
+            <div class="form-group">
+              <label>Name</label>
+              <input type="text" id="groupEditName" required autocomplete="off">
+            </div>
+            <div class="form-group">
+              <label>Beschreibung</label>
+              <input type="text" id="groupEditDescription" autocomplete="off">
+            </div>
+            <div class="modal-actions">
+              <button type="button" class="btn-cancel" id="btnCancelGroup">Abbrechen</button>
+              <button type="button" class="btn-danger" id="btnDeleteGroup" style="display:none">Loeschen</button>
+              <button type="submit" class="btn-confirm">Speichern</button>
+            </div>
+            <div class="error" id="groupError" style="display:none"></div>
+          </form>
+
+          <!-- Members section (outside groupForm to avoid nested form issues) -->
+          <div id="groupMemberSection" style="display:none">
+            <h4 style="margin-top:16px">Mitglieder</h4>
+            <div class="share-list" id="groupMemberList"></div>
+            <div class="share-create-row" style="margin-top:8px">
+              <select id="addMemberSelect"><option value="">-- Benutzer waehlen --</option></select>
+              <button type="button" class="btn-confirm" id="btnAddMember">Hinzufuegen</button>
+            </div>
+          </div>
+
+          <!-- Group connections section (outside groupForm) -->
+          <div id="groupConnSection" style="display:none">
+            <h4 style="margin-top:16px">Standardverbindungen</h4>
+            <div class="share-list" id="groupConnList"></div>
+            <button type="button" class="btn-small" id="btnAddGroupConn" style="margin-top:8px">+ Verbindung</button>
+
+            <!-- Inline group connection editor -->
+            <div id="groupConnEditorPanel" style="display:none;margin-top:12px;padding:12px;border:1px solid var(--border);border-radius:var(--radius-sm)">
+              <form id="groupConnForm">
+                <input type="hidden" id="groupConnEditId">
+                <div class="form-row">
+                  <div class="form-group"><label>Name</label><input type="text" id="groupConnName" required></div>
+                  <div class="form-group"><label>Host</label><input type="text" id="groupConnHost" required></div>
+                </div>
+                <div class="form-row">
+                  <div class="form-group"><label>Port</label><input type="number" id="groupConnPort" value="22"></div>
+                  <div class="form-group"><label>Username (optional)</label><input type="text" id="groupConnUsername" placeholder="User muss selbst eintragen"></div>
+                </div>
+                <div class="form-row">
+                  <div class="form-group">
+                    <label>Auth-Methode</label>
+                    <select id="groupConnAuthMethod">
+                      <option value="password">Passwort</option>
+                      <option value="key">Private Key</option>
+                    </select>
+                  </div>
+                  <div class="form-group" id="groupConnPasswordGroup"><label>Passwort</label><input type="password" id="groupConnPassword"></div>
+                </div>
+                <div id="groupConnKeyGroup" style="display:none">
+                  <div class="form-group"><label>Private Key</label><textarea id="groupConnPrivateKey" rows="3"></textarea></div>
+                  <div class="form-group"><label>Passphrase</label><input type="password" id="groupConnPassphrase"></div>
+                </div>
+                <div class="modal-actions">
+                  <button type="button" class="btn-cancel" id="btnCancelGroupConn">Abbrechen</button>
+                  <button type="submit" class="btn-confirm">Speichern</button>
+                </div>
+              </form>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Group connection credential prompt -->
+  <div id="gcCredModalOverlay" class="modal-overlay" style="display:none">
+    <div class="modal">
+      <h3>Login-Daten eingeben</h3>
+      <p id="gcCredInfo" style="margin-bottom:12px;color:var(--text-secondary);font-size:0.9em"></p>
+      <form id="gcCredForm">
+        <input type="hidden" id="gcCredConnId">
+        <div class="form-group" id="gcCredUsernameGroup">
+          <label>Username</label>
+          <input type="text" id="gcCredUsername" autocomplete="username">
+        </div>
+        <div class="form-group">
+          <label>Auth-Methode</label>
+          <select id="gcCredAuthMethod">
+            <option value="password">Passwort</option>
+            <option value="key">Private Key</option>
+          </select>
+        </div>
+        <div class="form-group" id="gcCredPasswordGroup">
+          <label>Passwort</label>
+          <input type="password" id="gcCredPassword" autocomplete="current-password">
+        </div>
+        <div id="gcCredKeyGroup" style="display:none">
+          <div class="form-group">
+            <label>Private Key</label>
+            <textarea id="gcCredPrivateKey" rows="3"></textarea>
+          </div>
+          <div class="form-group">
+            <label>Passphrase</label>
+            <input type="password" id="gcCredPassphrase">
+          </div>
+        </div>
+        <div class="form-group">
+          <label><input type="checkbox" id="gcCredSave" checked> Login-Daten fuer diese Verbindung speichern</label>
+        </div>
+        <div class="modal-actions">
+          <button type="button" class="btn-cancel" id="btnCancelGcCred">Abbrechen</button>
+          <button type="submit" class="btn-confirm">Verbinden</button>
+        </div>
+        <div class="error" id="gcCredError" style="display:none"></div>
+      </form>
+    </div>
+  </div>
+
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/ace/1.36.5/ace.js"></script>
+  <script src="/vendor/xterm.js"></script>
+  <script src="/vendor/xterm-addon-fit.js"></script>
+  <script src="/vendor/xterm-addon-web-links.js"></script>
+  <script src="/vendor/socket.io.js"></script>
+  <script src="/js/theme.js"></script>
+  <script src="/js/auth.js"></script>
+  <script src="/js/tabs.js"></script>
+  <script src="/js/terminal.js"></script>
+  <script src="/js/stats.js"></script>
+  <script src="/js/conmen.js"></script>
+  <script src="/js/skriptmen.js"></script>
+  <script src="/js/quickcon.js"></script>
+  <script src="/js/sftp.js"></script>
+  <script src="/js/portdash.js"></script>
+  <script src="/js/usermen.js"></script>
+  <script src="/js/groupmen.js"></script>
+  <script src="/js/sharing.js"></script>
+  <script src="/js/bookmarks.js"></script>
+  <script src="/js/app.js"></script>
+</body>
+</html>

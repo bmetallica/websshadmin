@@ -1,0 +1,26 @@
+node_modules/
+
+# Sensitive data
+data/database.sqlite
+data/database.sqlite-shm
+data/database.sqlite-wal
+data/.session-secret
+
+# User scripts (keep directory with .gitkeep)
+scripts/*
+!scripts/.gitkeep
+
+# IDE / Editor
+.claude/
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Build artifacts
+*.log
