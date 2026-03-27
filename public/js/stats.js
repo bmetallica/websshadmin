@@ -3,6 +3,16 @@ const Stats = {
   cache: {}, // sessionId -> last stats data
 
   init(socket) {
+    this._socket = socket;
+    const btn = document.getElementById('btnDisconnect');
+    if (btn) {
+      btn.addEventListener('click', () => {
+        if (this.currentSessionId) {
+          socket.emit('session:kill', { sessionId: this.currentSessionId });
+        }
+      });
+    }
+
     socket.on('stats:update', (data) => {
       // Always cache the latest stats for every session
       this.cache[data.sessionId] = data;
@@ -50,19 +60,25 @@ const Stats = {
     cpuEl.style.color = '';
     ramEl.style.color = '';
     diskEl.style.color = '';
+
+    const btn = document.getElementById('btnDisconnect');
+    if (btn) btn.style.display = 'none';
   },
 
   _updateHost(sessionId) {
     const hostEl = document.getElementById('statHost');
+    const btn    = document.getElementById('btnDisconnect');
     if (!sessionId || typeof Tabs === 'undefined') {
       hostEl.textContent = 'Keine Verbindung';
       hostEl.classList.remove('has-data');
+      if (btn) btn.style.display = 'none';
       return;
     }
     const info = Tabs.sessions.get(sessionId);
     if (info) {
       hostEl.textContent = `Verbindung: ${info.host}`;
       hostEl.classList.add('has-data');
+      if (btn) btn.style.display = '';
     }
   },
 
