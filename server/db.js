@@ -263,6 +263,72 @@ if (!hasMigration(9)) {
   markMigration(9, 'create_user_group_credentials');
 }
 
+// Migration 10: Add user_id to bookmarks for personal bookmarks
+if (!hasMigration(10)) {
+  db.transaction(() => {
+    const cols = db.prepare("PRAGMA table_info(bookmarks)").all().map(c => c.name);
+    if (!cols.includes('user_id')) {
+      db.exec("ALTER TABLE bookmarks ADD COLUMN user_id INTEGER REFERENCES users(id) ON DELETE CASCADE");
+      // Assign existing bookmarks to first admin
+      const admin = db.prepare("SELECT id FROM users WHERE role = 'admin' ORDER BY id LIMIT 1").get();
+      if (admin) {
+        db.prepare("UPDATE bookmarks SET user_id = ? WHERE user_id IS NULL").run(admin.id);
+      }
+    }
+    markMigration(10, 'add_user_id_to_bookmarks');
+  })();
+}
+
+// Migration 11: Add user_id to quick_categories for personal categories
+if (!hasMigration(11)) {
+  db.transaction(() => {
+    const cols = db.prepare("PRAGMA table_info(quick_categories)").all().map(c => c.name);
+    if (!cols.includes('user_id')) {
+      db.exec("ALTER TABLE quick_categories ADD COLUMN user_id INTEGER REFERENCES users(id) ON DELETE CASCADE");
+      const admin = db.prepare("SELECT id FROM users WHERE role = 'admin' ORDER BY id LIMIT 1").get();
+      if (admin) {
+        db.prepare("UPDATE quick_categories SET user_id = ? WHERE user_id IS NULL").run(admin.id);
+      }
+    }
+    markMigration(11, 'add_user_id_to_quick_categories');
+  })();
+}
+
+// Migration 12: Create group_bookmarks table
+if (!hasMigration(12)) {
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS group_bookmarks (
+      id         INTEGER PRIMARY KEY AUTOINCREMENT,
+      group_id   INTEGER NOT NULL REFERENCES groups(id) ON DELETE CASCADE,
+      name       TEXT NOT NULL,
+      url        TEXT NOT NULL,
+      sort_order INTEGER NOT NULL DEFAULT 0
+    );
+  `);
+  markMigration(12, 'create_group_bookmarks');
+}
+
+// Migration 13: Create group_quick_categories and group_quick_commands tables
+if (!hasMigration(13)) {
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS group_quick_categories (
+      id         INTEGER PRIMARY KEY AUTOINCREMENT,
+      group_id   INTEGER NOT NULL REFERENCES groups(id) ON DELETE CASCADE,
+      name       TEXT NOT NULL,
+      sort_order INTEGER NOT NULL DEFAULT 0
+    );
+
+    CREATE TABLE IF NOT EXISTS group_quick_commands (
+      id          INTEGER PRIMARY KEY AUTOINCREMENT,
+      category_id INTEGER NOT NULL REFERENCES group_quick_categories(id) ON DELETE CASCADE,
+      name        TEXT NOT NULL,
+      command     TEXT NOT NULL,
+      sort_order  INTEGER NOT NULL DEFAULT 0
+    );
+  `);
+  markMigration(13, 'create_group_quick_categories_commands');
+}
+
 // Encrypt any plaintext SSH credentials in connections table
 const { migrateConnections } = require('./services/encryption');
 migrateConnections(db);

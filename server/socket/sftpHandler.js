@@ -2,7 +2,7 @@ const sessionManager = require('../services/sessionManager');
 const path = require('path');
 
 module.exports = function (io, socket) {
-  // Get SFTP subsystem from existing SSH connection (only owner/coworker)
+  // Get (or reuse) a single cached SFTP channel per SSH session
   function getSftp(sessionId, cb) {
     const role = sessionManager.getSessionRole(sessionId, socket.id);
     if (!role || role === 'viewer') {
@@ -12,8 +12,21 @@ module.exports = function (io, socket) {
     if (!state || !state.sshClient) {
       return cb(new Error('Session not found or not connected'));
     }
+
+    // Reuse cached SFTP channel if still open
+    if (state.sftpChannel) {
+      return cb(null, state.sftpChannel, state);
+    }
+
+    // Open a new SFTP channel and cache it
     state.sshClient.sftp((err, sftp) => {
       if (err) return cb(err);
+
+      // Clear cache when channel closes or errors
+      sftp.on('close', () => { state.sftpChannel = null; });
+      sftp.on('error', () => { state.sftpChannel = null; });
+
+      state.sftpChannel = sftp;
       cb(null, sftp, state);
     });
   }
@@ -73,7 +86,9 @@ module.exports = function (io, socket) {
     });
   });
 
-  // Read file (for download - send file content as base64 chunks)
+  // Download file as base64 chunks (no size limit)
+  const CHUNK_SIZE = 256 * 1024; // 256 KB per chunk
+
   socket.on('sftp:download', ({ sessionId, filePath }) => {
     getSftp(sessionId, (err, sftp) => {
       if (err) {
@@ -85,24 +100,30 @@ module.exports = function (io, socket) {
           socket.emit('sftp:error', { sessionId, error: `Cannot stat ${filePath}: ${err.message}` });
           return;
         }
-        // Limit to 50MB for browser transfer
-        if (stats.size > 50 * 1024 * 1024) {
-          socket.emit('sftp:error', { sessionId, error: 'File too large (max 50MB)' });
-          return;
-        }
-        const chunks = [];
-        const readStream = sftp.createReadStream(filePath);
-        readStream.on('data', (chunk) => { chunks.push(chunk); });
-        readStream.on('end', () => {
-          const buf = Buffer.concat(chunks);
-          socket.emit('sftp:download', {
+        const fileName = path.posix.basename(filePath);
+        const totalSize = stats.size;
+
+        // Announce start
+        socket.emit('sftp:download:start', { sessionId, filePath, fileName, totalSize });
+
+        let transferred = 0;
+        const readStream = sftp.createReadStream(filePath, { highWaterMark: CHUNK_SIZE });
+
+        readStream.on('data', (chunk) => {
+          transferred += chunk.length;
+          socket.emit('sftp:download:chunk', {
             sessionId,
             filePath,
-            fileName: path.posix.basename(filePath),
-            data: buf.toString('base64'),
-            size: stats.size,
+            data: chunk.toString('base64'),
+            transferred,
+            totalSize,
           });
         });
+
+        readStream.on('end', () => {
+          socket.emit('sftp:download:end', { sessionId, filePath, fileName, totalSize });
+        });
+
         readStream.on('error', (err) => {
           socket.emit('sftp:error', { sessionId, error: `Download error: ${err.message}` });
         });
@@ -110,24 +131,63 @@ module.exports = function (io, socket) {
     });
   });
 
-  // Upload file (receive base64 data)
-  socket.on('sftp:upload', ({ sessionId, dirPath, fileName, data }) => {
+  // Chunked upload — active streams keyed by remotePath
+  const activeUploads = {};
+
+  socket.on('sftp:upload:start', ({ sessionId, dirPath, fileName, totalSize }) => {
     getSftp(sessionId, (err, sftp) => {
       if (err) {
         socket.emit('sftp:error', { sessionId, error: err.message });
         return;
       }
       const remotePath = path.posix.join(dirPath, fileName);
-      const buf = Buffer.from(data, 'base64');
       const writeStream = sftp.createWriteStream(remotePath);
-      writeStream.on('close', () => {
-        socket.emit('sftp:uploaded', { sessionId, dirPath, fileName, remotePath });
-      });
+
       writeStream.on('error', (err) => {
+        delete activeUploads[remotePath];
         socket.emit('sftp:error', { sessionId, error: `Upload error: ${err.message}` });
       });
-      writeStream.end(buf);
+
+      writeStream.on('close', () => {
+        delete activeUploads[remotePath];
+        socket.emit('sftp:uploaded', { sessionId, dirPath, fileName, remotePath });
+      });
+
+      activeUploads[remotePath] = { writeStream, dirPath, fileName, totalSize, transferred: 0 };
+      socket.emit('sftp:upload:ready', { sessionId, remotePath });
     });
+  });
+
+  socket.on('sftp:upload:chunk', ({ sessionId, remotePath, data, transferred }) => {
+    const upload = activeUploads[remotePath];
+    if (!upload) {
+      socket.emit('sftp:error', { sessionId, error: `Kein aktiver Upload fuer ${remotePath}` });
+      return;
+    }
+    upload.transferred = transferred;
+    const buf = Buffer.from(data, 'base64');
+    const canContinue = upload.writeStream.write(buf);
+    if (canContinue) {
+      socket.emit('sftp:upload:ack', { sessionId, remotePath, transferred });
+    } else {
+      // Drain before acknowledging to apply back-pressure
+      upload.writeStream.once('drain', () => {
+        socket.emit('sftp:upload:ack', { sessionId, remotePath, transferred });
+      });
+    }
+  });
+
+  socket.on('sftp:upload:end', ({ sessionId, remotePath }) => {
+    const upload = activeUploads[remotePath];
+    if (!upload) return;
+    upload.writeStream.end();
+  });
+
+  // Cleanup open streams on disconnect
+  socket.on('disconnect', () => {
+    for (const { writeStream } of Object.values(activeUploads)) {
+      try { writeStream.destroy(); } catch { /* ignore */ }
+    }
   });
 
   // Delete file

@@ -5,6 +5,7 @@ const SftpBrowser = {
   currentPath: '/',
   history: [],
   historyIndex: -1,
+  _downloads: {}, // active chunked downloads keyed by filePath
 
   init(socket) {
     this.socket = socket;
@@ -80,10 +81,32 @@ const SftpBrowser = {
       this.navigate(home);
     });
 
-    socket.on('sftp:download', ({ sessionId, fileName, data }) => {
+    socket.on('sftp:download:start', ({ sessionId, filePath, fileName, totalSize }) => {
       if (sessionId !== this.currentSessionId) return;
-      // Trigger browser download
-      const blob = new Blob([Uint8Array.from(atob(data), c => c.charCodeAt(0))]);
+      this._downloads[filePath] = { fileName, totalSize, chunks: [] };
+      const sizeStr = this.formatSize(totalSize);
+      this.setStatus(`Download: ${fileName} (${sizeStr})…`);
+    });
+
+    socket.on('sftp:download:chunk', ({ sessionId, filePath, data, transferred, totalSize }) => {
+      if (sessionId !== this.currentSessionId) return;
+      const dl = this._downloads[filePath];
+      if (!dl) return;
+      dl.chunks.push(Uint8Array.from(atob(data), c => c.charCodeAt(0)));
+      if (totalSize > 0) {
+        const pct = Math.round((transferred / totalSize) * 100);
+        this.setStatus(`Download: ${dl.fileName} — ${pct}% (${this.formatSize(transferred)} / ${this.formatSize(totalSize)})`);
+      }
+    });
+
+    socket.on('sftp:download:end', ({ sessionId, filePath, fileName }) => {
+      if (sessionId !== this.currentSessionId) return;
+      const dl = this._downloads[filePath];
+      if (!dl) return;
+      delete this._downloads[filePath];
+
+      // Merge all chunks into a single Blob and trigger browser download
+      const blob = new Blob(dl.chunks);
       const url = URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.href = url;
@@ -91,8 +114,8 @@ const SftpBrowser = {
       document.body.appendChild(a);
       a.click();
       document.body.removeChild(a);
-      URL.revokeObjectURL(url);
-      this.setStatus(`Download: ${fileName}`);
+      setTimeout(() => URL.revokeObjectURL(url), 10000);
+      this.setStatus(`Download abgeschlossen: ${fileName}`);
     });
 
     socket.on('sftp:uploaded', ({ sessionId, dirPath, fileName }) => {
@@ -291,22 +314,85 @@ const SftpBrowser = {
 
   uploadFiles(files) {
     if (!this.currentSessionId) return;
-    for (const file of files) {
+    // Upload sequentially to avoid overloading the socket
+    const queue = Array.from(files);
+    const uploadNext = () => {
+      if (queue.length === 0) return;
+      this._uploadFile(queue.shift(), uploadNext);
+    };
+    uploadNext();
+  },
+
+  _uploadFile(file, onDone) {
+    const CHUNK_SIZE = 256 * 1024; // 256 KB
+    const sessionId = this.currentSessionId;
+    const dirPath = this.currentPath;
+    const totalSize = file.size;
+
+    // Start the upload
+    this.socket.emit('sftp:upload:start', { sessionId, dirPath, fileName: file.name, totalSize });
+    this.setStatus(`Upload: ${file.name} (${this.formatSize(totalSize)})…`);
+
+    const onReady = ({ sessionId: sid, remotePath }) => {
+      if (sid !== sessionId) return;
+      this.socket.off('sftp:upload:ready', onReady);
+
+      // Read entire file as ArrayBuffer, then send chunks on ack
       const reader = new FileReader();
       reader.onload = () => {
-        const base64 = btoa(
-          new Uint8Array(reader.result).reduce((data, byte) => data + String.fromCharCode(byte), '')
-        );
-        this.socket.emit('sftp:upload', {
-          sessionId: this.currentSessionId,
-          dirPath: this.currentPath,
-          fileName: file.name,
-          data: base64,
-        });
-        this.setStatus(`Lade hoch: ${file.name}...`);
+        const buffer = new Uint8Array(reader.result);
+        let offset = 0;
+
+        const sendNextChunk = () => {
+          if (offset >= buffer.length) {
+            this.socket.emit('sftp:upload:end', { sessionId, remotePath });
+            this.socket.off('sftp:upload:ack', onAck);
+            this.socket.off('sftp:error', onError);
+            return;
+          }
+          const slice = buffer.slice(offset, offset + CHUNK_SIZE);
+          offset += slice.length;
+          // Convert to base64
+          let binary = '';
+          for (let i = 0; i < slice.length; i++) binary += String.fromCharCode(slice[i]);
+          const data = btoa(binary);
+          this.socket.emit('sftp:upload:chunk', { sessionId, remotePath, data, transferred: offset });
+        };
+
+        const onAck = ({ sessionId: sid, remotePath: rp, transferred }) => {
+          if (sid !== sessionId || rp !== remotePath) return;
+          const pct = totalSize > 0 ? Math.round((transferred / totalSize) * 100) : 0;
+          this.setStatus(`Upload: ${file.name} — ${pct}% (${this.formatSize(transferred)} / ${this.formatSize(totalSize)})`);
+          sendNextChunk();
+        };
+
+        const onError = ({ sessionId: sid, error }) => {
+          if (sid !== sessionId) return;
+          this.socket.off('sftp:upload:ack', onAck);
+          this.socket.off('sftp:error', onError);
+          this.setStatus(`Fehler: ${error}`, true);
+          if (onDone) onDone();
+        };
+
+        this.socket.on('sftp:upload:ack', onAck);
+        this.socket.on('sftp:error', onError);
+
+        // Send first chunk
+        sendNextChunk();
       };
       reader.readAsArrayBuffer(file);
-    }
+    };
+
+    const onUploaded = ({ sessionId: sid, fileName }) => {
+      if (sid !== sessionId || fileName !== file.name) return;
+      this.socket.off('sftp:uploaded', onUploaded);
+      this.setStatus(`Upload abgeschlossen: ${file.name}`);
+      this.refresh();
+      if (onDone) onDone();
+    };
+
+    this.socket.once('sftp:upload:ready', onReady);
+    this.socket.once('sftp:uploaded', onUploaded);
   },
 
   formatSize(bytes) {

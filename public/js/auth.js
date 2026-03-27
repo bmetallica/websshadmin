@@ -20,7 +20,7 @@ const Auth = {
         });
         if (res.ok) {
           document.getElementById('modalOverlay').style.display = 'none';
-          alert('Passwort geaendert!');
+          alert('Passwort geändert!');
         } else {
           const data = await res.json();
           errEl.textContent = data.error;
@@ -33,6 +33,7 @@ const Auth = {
     });
 
     document.getElementById('btnLogout').addEventListener('click', async () => {
+      Terminal._intentionalNavigation = true;
       await fetch('/api/auth/logout', { method: 'POST' });
       window.location.href = '/';
     });

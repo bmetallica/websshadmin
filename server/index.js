@@ -115,7 +115,7 @@ app.use('/vendor', express.static(path.join(__dirname, '..', 'public', 'vendor')
 
 // Socket.io with session sharing
 const io = new Server(server, {
-  maxHttpBufferSize: 5e6, // 5MB max for socket messages (SFTP uploads)
+  maxHttpBufferSize: 1e6, // 1MB per socket message (chunked uploads use 256KB chunks)
 });
 
 io.use((socket, next) => {

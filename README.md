@@ -11,6 +11,7 @@ Ein modernes, funktionsreiches webbasiertes SSH-Management-System mit Multi-User
 ### Terminal & Sessions
 
 - **Multi-Tab SSH Sessions** — Mehrere SSH-Verbindungen gleichzeitig in Tabs verwalten
+- **Ctrl+W Schutz** — Browser-Shortcut Ctrl+W wird abgefangen bevor er den Tab schließt; in Firefox erscheint ein Bestätigungsdialog, zusätzlich ein „Strg+W"-Button im Terminal der das Zeichen direkt durchgibt
 - **Tab-Rename** — Doppelklick auf Tab-Label zum Umbenennen
 - **Drag-and-Drop Tabs** — Tab-Reihenfolge per Drag-and-Drop ändern
 - **Fullscreen-Modus** — Maximiert den Terminal-Bereich, Escape zum Verlassen
@@ -23,6 +24,7 @@ Ein modernes, funktionsreiches webbasiertes SSH-Management-System mit Multi-User
 
 - **SSH-Profile** — Verbindungen mit Name, Host, Port, Username speichern
 - **Auth-Methoden** — Passwort oder Private Key (mit optionaler Passphrase)
+- **Legacy-Server-Kompatibilität** — Unterstützt alte OpenSSH-Server (≤ 7.3) mit veralteten Algorithmen (`ssh-rsa`, `diffie-hellman-group14-sha1`, `diffie-hellman-group1-sha1`) sowie Server die nur `keyboard-interactive` Authentifizierung akzeptieren
 - **SSH-Tunnel** — Port-Forwarding (Local Port → Remote Host:Port) pro Verbindung konfigurierbar, Bind-Adresse wählbar
 - **Suche/Filter** — Verbindungsliste nach Name, Host oder Username durchsuchen
 - **Sortierung** — Benutzerdefinierte Reihenfolge der Verbindungen
@@ -150,6 +152,22 @@ Themes werden per `localStorage` gespeichert und wirken sich auf die gesamte UI,
 - **Input-Validierung** — Port-Range, Pflichtfelder, Passwort-Mindestlänge (8 Zeichen)
 - **Letzter-Admin-Schutz** — Der letzte Admin-Account kann nicht gelöscht oder herabgestuft werden
 - **Verschlüsselte Gruppen-Credentials** — Auch benutzerspezifische Zugangsdaten für Gruppen-Verbindungen werden AES-256-GCM verschlüsselt
+
+---
+
+## Changelog
+
+### v1.1.0
+
+- **SSH Legacy-Kompatibilität** — Verbindungen zu alten Servern (OpenSSH ≤ 7.3, CentOS 7, Ubuntu 16.04-Ära) funktionieren jetzt zuverlässig:
+  - Erweiterte `serverHostKey`-Algorithmen inkl. `ssh-rsa`
+  - Erweiterte Key-Exchange-Algorithmen inkl. `diffie-hellman-group14-sha1` und `diffie-hellman-group1-sha1`
+  - `keyboard-interactive` Authentifizierung als Fallback wenn `PasswordAuthentication` deaktiviert ist
+- **Ctrl+W Browser-Shortcut** — Verhindert versehentliches Tab-Schließen während Terminal-Sessions:
+  - Chrome/Edge: `preventDefault()` blockiert den Browser-Shortcut direkt
+  - Firefox: Bestätigungsdialog bei aktiven Sessions + dedizierter „Strg+W"-Button im Terminal
+- **Logout-Fix** — `beforeunload`-Handler wird beim Logout korrekt deaktiviert
+- **UI-Korrekturen** — Alle deutschen Umlaute in der UI korrigiert (ö, ä, ü statt oe, ae, ue)
 
 ---
 

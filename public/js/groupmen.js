@@ -42,6 +42,35 @@ const GroupMen = {
       document.getElementById('groupConnPasswordGroup').style.display = e.target.value === 'password' ? '' : 'none';
       document.getElementById('groupConnKeyGroup').style.display = e.target.value === 'key' ? '' : 'none';
     });
+
+    // Group bookmark management
+    document.getElementById('btnAddGroupBm').addEventListener('click', () => this._openGroupBmEditor());
+    document.getElementById('btnCancelGroupBm').addEventListener('click', () => {
+      document.getElementById('groupBmEditorPanel').style.display = 'none';
+    });
+    document.getElementById('groupBmForm').addEventListener('submit', (e) => {
+      e.preventDefault();
+      this._saveGroupBm();
+    });
+
+    // Group quick category management
+    document.getElementById('btnAddGroupQuickCat').addEventListener('click', () => this._openGroupQuickCatEditor());
+    document.getElementById('btnCancelGroupQuickCat').addEventListener('click', () => {
+      document.getElementById('groupQuickCatEditorPanel').style.display = 'none';
+    });
+    document.getElementById('groupQuickCatForm').addEventListener('submit', (e) => {
+      e.preventDefault();
+      this._saveGroupQuickCat();
+    });
+
+    // Group quick command management
+    document.getElementById('btnCancelGroupQuickCmd').addEventListener('click', () => {
+      document.getElementById('groupQuickCmdEditorPanel').style.display = 'none';
+    });
+    document.getElementById('groupQuickCmdForm').addEventListener('submit', (e) => {
+      e.preventDefault();
+      this._saveGroupQuickCmd();
+    });
   },
 
   enableForAdmin() {
@@ -97,18 +126,29 @@ const GroupMen = {
     document.getElementById('btnDeleteGroup').style.display = group ? 'inline-block' : 'none';
     document.getElementById('groupError').style.display = 'none';
     document.getElementById('groupConnEditorPanel').style.display = 'none';
+    document.getElementById('groupBmEditorPanel').style.display = 'none';
+    document.getElementById('groupQuickCatEditorPanel').style.display = 'none';
+    document.getElementById('groupQuickCmdEditorPanel').style.display = 'none';
 
-    // Show/hide member and connection sections
+    // Show/hide sections for existing groups
     const memberSection = document.getElementById('groupMemberSection');
     const connSection = document.getElementById('groupConnSection');
+    const bmSection = document.getElementById('groupBookmarkSection');
+    const quickSection = document.getElementById('groupQuickSection');
     if (group) {
       memberSection.style.display = 'block';
       connSection.style.display = 'block';
+      bmSection.style.display = 'block';
+      quickSection.style.display = 'block';
       this._loadMembers(group.id);
       this._loadGroupConns(group.id);
+      this._loadGroupBms(group.id);
+      this._loadGroupQuickCats(group.id);
     } else {
       memberSection.style.display = 'none';
       connSection.style.display = 'none';
+      bmSection.style.display = 'none';
+      quickSection.style.display = 'none';
     }
 
     document.getElementById('groupEditName').focus();
@@ -117,6 +157,9 @@ const GroupMen = {
   _closeEditor() {
     this.editorPanel.style.display = 'none';
     document.getElementById('groupConnEditorPanel').style.display = 'none';
+    document.getElementById('groupBmEditorPanel').style.display = 'none';
+    document.getElementById('groupQuickCatEditorPanel').style.display = 'none';
+    document.getElementById('groupQuickCmdEditorPanel').style.display = 'none';
   },
 
   async _saveGroup() {
@@ -166,7 +209,7 @@ const GroupMen = {
   async _deleteGroup() {
     const id = document.getElementById('groupEditId').value;
     if (!id) return;
-    if (!confirm('Gruppe wirklich loeschen?')) return;
+    if (!confirm('Gruppe wirklich löschen?')) return;
     await fetch(`/api/groups/${id}`, { method: 'DELETE' });
     this._closeEditor();
     this.load();
@@ -197,7 +240,7 @@ const GroupMen = {
 
       // Populate add-member dropdown with users not in group
       const select = document.getElementById('addMemberSelect');
-      select.innerHTML = '<option value="">-- Benutzer waehlen --</option>';
+      select.innerHTML = '<option value="">-- Benutzer wählen --</option>';
       const memberIds = members.map(m => m.id);
       for (const u of this.allUsers) {
         if (!memberIds.includes(u.id)) {
@@ -235,7 +278,7 @@ const GroupMen = {
           <span>${this._esc(c.name)}</span>
           <span class="share-role">${c.host}:${c.port}</span>
           <button class="share-btn share-copy" title="Bearbeiten">&#9998;</button>
-          <button class="share-btn share-revoke" title="Loeschen">&times;</button>
+          <button class="share-btn share-revoke" title="Löschen">&times;</button>
         `;
         row.querySelector('.share-copy').addEventListener('click', () => this._openGroupConnEditor(c));
         row.querySelector('.share-revoke').addEventListener('click', async () => {
@@ -293,6 +336,183 @@ const GroupMen = {
     });
     document.getElementById('groupConnEditorPanel').style.display = 'none';
     this._loadGroupConns(groupId);
+  },
+
+  // --- Group Bookmarks ---
+  async _loadGroupBms(groupId) {
+    const list = document.getElementById('groupBookmarkList');
+    list.innerHTML = '';
+    try {
+      const res = await fetch(`/api/groups/${groupId}/bookmarks`);
+      const bms = await res.json();
+
+      for (const bm of bms) {
+        const row = document.createElement('div');
+        row.className = 'share-row';
+        row.innerHTML = `
+          <span>${this._esc(bm.name)}</span>
+          <span class="share-role">${this._esc(bm.url)}</span>
+          <button class="share-btn share-copy" title="Bearbeiten">&#9998;</button>
+          <button class="share-btn share-revoke" title="Löschen">&times;</button>
+        `;
+        row.querySelector('.share-copy').addEventListener('click', () => this._openGroupBmEditor(bm));
+        row.querySelector('.share-revoke').addEventListener('click', async () => {
+          await fetch(`/api/groups/${groupId}/bookmarks/${bm.id}`, { method: 'DELETE' });
+          this._loadGroupBms(groupId);
+        });
+        list.appendChild(row);
+      }
+    } catch { /* ignore */ }
+  },
+
+  _openGroupBmEditor(bm) {
+    const panel = document.getElementById('groupBmEditorPanel');
+    panel.style.display = 'block';
+    const isEdit = !!bm;
+    document.getElementById('groupBmEditId').value = isEdit ? bm.id : '';
+    document.getElementById('groupBmName').value = isEdit ? bm.name : '';
+    document.getElementById('groupBmUrl').value = isEdit ? bm.url : '';
+  },
+
+  async _saveGroupBm() {
+    const groupId = document.getElementById('groupEditId').value;
+    const bmId = document.getElementById('groupBmEditId').value;
+    const data = {
+      name: document.getElementById('groupBmName').value.trim(),
+      url: document.getElementById('groupBmUrl').value.trim(),
+    };
+
+    if (!data.name || !data.url) return;
+
+    const url = bmId ? `/api/groups/${groupId}/bookmarks/${bmId}` : `/api/groups/${groupId}/bookmarks`;
+    const method = bmId ? 'PUT' : 'POST';
+
+    await fetch(url, {
+      method,
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(data),
+    });
+    document.getElementById('groupBmEditorPanel').style.display = 'none';
+    this._loadGroupBms(groupId);
+  },
+
+  // --- Group Quick Categories & Commands ---
+  async _loadGroupQuickCats(groupId) {
+    const list = document.getElementById('groupQuickCatList');
+    list.innerHTML = '';
+    try {
+      const res = await fetch(`/api/groups/${groupId}/quick-categories`);
+      const cats = await res.json();
+
+      for (const cat of cats) {
+        const catBlock = document.createElement('div');
+        catBlock.style.cssText = 'margin-bottom:8px';
+
+        const catRow = document.createElement('div');
+        catRow.className = 'share-row';
+        catRow.innerHTML = `
+          <span><strong>${this._esc(cat.name)}</strong></span>
+          <button class="share-btn share-copy" title="Bearbeiten">&#9998;</button>
+          <button class="share-btn" title="Befehl hinzufügen" style="color:var(--accent)">+</button>
+          <button class="share-btn share-revoke" title="Löschen">&times;</button>
+        `;
+        const btns = catRow.querySelectorAll('.share-btn');
+        btns[0].addEventListener('click', () => this._openGroupQuickCatEditor(cat));
+        btns[1].addEventListener('click', () => this._openGroupQuickCmdEditor(cat.id));
+        btns[2].addEventListener('click', async () => {
+          await fetch(`/api/groups/${groupId}/quick-categories/${cat.id}`, { method: 'DELETE' });
+          this._loadGroupQuickCats(groupId);
+        });
+        catBlock.appendChild(catRow);
+
+        // Commands
+        if (cat.commands && cat.commands.length) {
+          for (const cmd of cat.commands) {
+            const cmdRow = document.createElement('div');
+            cmdRow.className = 'share-row';
+            cmdRow.style.cssText = 'padding-left:20px;font-size:0.9em';
+            cmdRow.innerHTML = `
+              <span>${this._esc(cmd.name)}</span>
+              <span class="share-role" style="font-family:monospace;font-size:0.85em">${this._esc(cmd.command)}</span>
+              <button class="share-btn share-copy" title="Bearbeiten">&#9998;</button>
+              <button class="share-btn share-revoke" title="Löschen">&times;</button>
+            `;
+            cmdRow.querySelector('.share-copy').addEventListener('click', () => this._openGroupQuickCmdEditor(cat.id, cmd));
+            cmdRow.querySelector('.share-revoke').addEventListener('click', async () => {
+              await fetch(`/api/groups/${groupId}/quick-categories/${cat.id}/commands/${cmd.id}`, { method: 'DELETE' });
+              this._loadGroupQuickCats(groupId);
+            });
+            catBlock.appendChild(cmdRow);
+          }
+        }
+
+        list.appendChild(catBlock);
+      }
+    } catch { /* ignore */ }
+  },
+
+  _openGroupQuickCatEditor(cat) {
+    const panel = document.getElementById('groupQuickCatEditorPanel');
+    panel.style.display = 'block';
+    document.getElementById('groupQuickCmdEditorPanel').style.display = 'none';
+    const isEdit = !!cat;
+    document.getElementById('groupQuickCatEditId').value = isEdit ? cat.id : '';
+    document.getElementById('groupQuickCatName').value = isEdit ? cat.name : '';
+  },
+
+  async _saveGroupQuickCat() {
+    const groupId = document.getElementById('groupEditId').value;
+    const catId = document.getElementById('groupQuickCatEditId').value;
+    const name = document.getElementById('groupQuickCatName').value.trim();
+
+    if (!name) return;
+
+    const url = catId ? `/api/groups/${groupId}/quick-categories/${catId}` : `/api/groups/${groupId}/quick-categories`;
+    const method = catId ? 'PUT' : 'POST';
+
+    await fetch(url, {
+      method,
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ name }),
+    });
+    document.getElementById('groupQuickCatEditorPanel').style.display = 'none';
+    this._loadGroupQuickCats(groupId);
+  },
+
+  _openGroupQuickCmdEditor(catId, cmd) {
+    const panel = document.getElementById('groupQuickCmdEditorPanel');
+    panel.style.display = 'block';
+    document.getElementById('groupQuickCatEditorPanel').style.display = 'none';
+    const isEdit = !!cmd;
+    document.getElementById('groupQuickCmdEditId').value = isEdit ? cmd.id : '';
+    document.getElementById('groupQuickCmdCatId').value = catId;
+    document.getElementById('groupQuickCmdName').value = isEdit ? cmd.name : '';
+    document.getElementById('groupQuickCmdCommand').value = isEdit ? cmd.command : '';
+  },
+
+  async _saveGroupQuickCmd() {
+    const groupId = document.getElementById('groupEditId').value;
+    const catId = document.getElementById('groupQuickCmdCatId').value;
+    const cmdId = document.getElementById('groupQuickCmdEditId').value;
+    const data = {
+      name: document.getElementById('groupQuickCmdName').value.trim(),
+      command: document.getElementById('groupQuickCmdCommand').value.trim(),
+    };
+
+    if (!data.name || !data.command) return;
+
+    const url = cmdId
+      ? `/api/groups/${groupId}/quick-categories/${catId}/commands/${cmdId}`
+      : `/api/groups/${groupId}/quick-categories/${catId}/commands`;
+    const method = cmdId ? 'PUT' : 'POST';
+
+    await fetch(url, {
+      method,
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(data),
+    });
+    document.getElementById('groupQuickCmdEditorPanel').style.display = 'none';
+    this._loadGroupQuickCats(groupId);
   },
 
   _esc(str) {

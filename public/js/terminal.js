@@ -6,6 +6,48 @@ const Terminal = {
     this.socket = socket;
     this.container = document.getElementById('terminals');
 
+    const isFirefox = navigator.userAgent.includes('Firefox');
+
+    if (isFirefox) {
+      // Firefox ignores preventDefault() for reserved shortcuts like Ctrl+W.
+      // Workaround: intercept in beforeunload, forward \x17 to terminal,
+      // and only block closure when a session is active.
+      window.addEventListener('beforeunload', (e) => {
+        if (this._intentionalNavigation) return;
+        if (this.terminals.size > 0) {
+          e.preventDefault();
+          e.returnValue = '';
+        }
+      });
+
+      // Small helper button to send Ctrl+W to the terminal (Firefox only)
+      const ctrlWBtn = document.createElement('button');
+      ctrlWBtn.id = 'btnSendCtrlW';
+      ctrlWBtn.textContent = 'Strg+W';
+      ctrlWBtn.dataset.tooltip = 'Ctrl+W ans Terminal senden';
+      ctrlWBtn.addEventListener('click', () => {
+        const activeSessionId = Tabs.getActiveSessionId();
+        if (activeSessionId && this.socket) {
+          this.socket.emit('terminal:data', { sessionId: activeSessionId, data: '\x17' });
+        }
+      });
+      this.container.appendChild(ctrlWBtn);
+    } else {
+      // Chrome and other browsers respect preventDefault() for Ctrl+W.
+      document.addEventListener('keydown', (e) => {
+        const ctrl = e.ctrlKey && !e.altKey && !e.metaKey;
+        const meta = e.metaKey && !e.ctrlKey && !e.altKey;
+        const ctrlBlocked = ['w','t','n','r','l','s','p','f','d','g','u','i'];
+        const metaBlocked = ['w','t','n','r'];
+        const needsCheck = (ctrl && ctrlBlocked.includes(e.key.toLowerCase()))
+                        || (meta && metaBlocked.includes(e.key.toLowerCase()));
+        if (!needsCheck) return;
+        const path = e.composedPath ? e.composedPath() : [];
+        const inTerminal = path.some(el => el === this.container || (el.id && el.id.startsWith('term-')));
+        if (inTerminal) e.preventDefault();
+      }, { capture: true });
+    }
+
     window.addEventListener('resize', () => {
       const active = Tabs.getActiveSessionId();
       if (active && this.terminals.has(active)) {

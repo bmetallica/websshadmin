@@ -143,12 +143,13 @@ function _attemptReconnect(sessionId) {
 
       console.log(`[SSH] Reconnected session ${sessionId} successfully`);
 
-      // Clean up old client
+      // Clean up old client and cached SFTP channel
       try { state.sshClient.end(); } catch (e) {}
 
-      // Replace client and stream
+      // Replace client and stream, clear SFTP cache
       state.sshClient = newClient;
       state.shellStream = newShell;
+      state.sftpChannel = null;
       state.reconnecting = false;
       state.reconnectAttempts = 0;
 

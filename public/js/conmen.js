@@ -57,7 +57,7 @@ const ConMen = {
     // Delete
     document.getElementById('btnDeleteConn').addEventListener('click', async () => {
       const id = document.getElementById('connId').value;
-      if (id && confirm('Verbindung wirklich loeschen?')) {
+      if (id && confirm('Verbindung wirklich löschen?')) {
         await fetch(`/api/connections/${id}`, { method: 'DELETE' });
         document.getElementById('connModalOverlay').style.display = 'none';
         this.load();

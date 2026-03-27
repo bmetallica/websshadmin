@@ -108,7 +108,7 @@ const SkriptMen = {
         const icon = node.name.endsWith('.sh') ? '&#128220;' : node.name.endsWith('.py') ? '&#128013;' : '&#128196;';
         fileEl.innerHTML = `<span>${icon}</span><span>${this._escHtml(node.name)}</span>`;
 
-        fileEl.title = `Skript ausfuehren: ${node.path}`;
+        fileEl.title = `Skript ausführen: ${node.path}`;
         fileEl.addEventListener('click', (e) => {
           e.stopPropagation();
           const sessionId = Tabs.getActiveSessionId();

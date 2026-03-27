@@ -1,12 +1,12 @@
 const QuickCon = {
-  categories: [],
+  personalCats: [],
+  groupCats: [],
   socket: null,
   openDropdownId: null,
 
   init(socket) {
     this.socket = socket;
 
-    // Add category button
     document.getElementById('btnAddCategory').addEventListener('click', () => {
       this.openCategoryModal();
     });
@@ -82,10 +82,19 @@ const QuickCon = {
   async load() {
     try {
       const res = await fetch('/api/quick-categories');
-      this.categories = await res.json();
+      const data = await res.json();
+      // Support both old format (array) and new format ({personal, group})
+      if (Array.isArray(data)) {
+        this.personalCats = data;
+        this.groupCats = [];
+      } else {
+        this.personalCats = data.personal || [];
+        this.groupCats = data.group || [];
+      }
       this.render();
     } catch {
-      this.categories = [];
+      this.personalCats = [];
+      this.groupCats = [];
     }
   },
 
@@ -93,34 +102,60 @@ const QuickCon = {
     const container = document.getElementById('quickCategories');
     container.innerHTML = '';
 
-    for (const cat of this.categories) {
-      const catEl = document.createElement('div');
-      catEl.className = 'quick-category';
+    // Group categories (read-only, prefixed with group name)
+    for (const cat of this.groupCats) {
+      // Use "g-{id}" as dropdown ID to avoid collision with personal IDs
+      container.appendChild(this._buildCatEl(cat, false, `g-${cat.id}`));
+    }
 
-      const btn = document.createElement('button');
-      btn.className = 'quick-cat-btn';
-      btn.textContent = cat.name;
-      btn.addEventListener('click', (e) => {
-        e.stopPropagation();
-        this._toggleDropdown(cat.id);
-      });
+    // Personal categories (editable)
+    for (const cat of this.personalCats) {
+      container.appendChild(this._buildCatEl(cat, true, `p-${cat.id}`));
+    }
+  },
 
-      const dropdown = document.createElement('div');
-      dropdown.className = 'quick-dropdown';
-      dropdown.id = `quick-dd-${cat.id}`;
+  _buildCatEl(cat, editable, ddId) {
+    const catEl = document.createElement('div');
+    catEl.className = 'quick-category';
 
-      // Dropdown header
-      const header = document.createElement('div');
-      header.className = 'quick-dropdown-header';
-      header.innerHTML = `<span>${this._escHtml(cat.name)}</span>`;
+    const btn = document.createElement('button');
+    btn.className = 'quick-cat-btn';
+    // Group categories get a subtle prefix indicator
+    btn.textContent = cat.name;
+    if (!editable && cat.group_name) {
+      btn.title = `Gruppe: ${cat.group_name}`;
+      btn.style.cssText = 'border-left: 2px solid var(--accent); padding-left: 8px;';
+    }
+    btn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      this._toggleDropdown(ddId);
+    });
 
+    const dropdown = document.createElement('div');
+    dropdown.className = 'quick-dropdown';
+    dropdown.id = `quick-dd-${ddId}`;
+
+    // Dropdown header
+    const header = document.createElement('div');
+    header.className = 'quick-dropdown-header';
+    const titleSpan = document.createElement('span');
+    titleSpan.textContent = cat.name;
+    if (!editable && cat.group_name) {
+      const groupLabel = document.createElement('small');
+      groupLabel.style.cssText = 'color:var(--accent);margin-left:6px;font-weight:400;';
+      groupLabel.textContent = cat.group_name;
+      titleSpan.appendChild(groupLabel);
+    }
+    header.appendChild(titleSpan);
+
+    if (editable) {
       const headerActions = document.createElement('div');
       headerActions.style.cssText = 'display:flex;gap:4px;';
 
       const addCmdBtn = document.createElement('button');
       addCmdBtn.className = 'btn-icon';
       addCmdBtn.textContent = '+';
-      addCmdBtn.title = 'Neuen Befehl hinzufuegen';
+      addCmdBtn.title = 'Neuen Befehl hinzufügen';
       addCmdBtn.addEventListener('click', (e) => {
         e.stopPropagation();
         this.openCommandModal(cat.id);
@@ -138,7 +173,7 @@ const QuickCon = {
       const delCatBtn = document.createElement('button');
       delCatBtn.className = 'btn-icon';
       delCatBtn.textContent = '\u2716';
-      delCatBtn.title = 'Kategorie loeschen';
+      delCatBtn.title = 'Kategorie löschen';
       delCatBtn.addEventListener('click', async (e) => {
         e.stopPropagation();
         await fetch(`/api/quick-categories/${cat.id}`, { method: 'DELETE' });
@@ -149,24 +184,29 @@ const QuickCon = {
       headerActions.appendChild(editCatBtn);
       headerActions.appendChild(delCatBtn);
       header.appendChild(headerActions);
-      dropdown.appendChild(header);
+    }
 
-      // Commands
-      if (cat.commands && cat.commands.length) {
-        for (const cmd of cat.commands) {
-          const cmdEl = document.createElement('div');
-          cmdEl.className = 'quick-cmd-item';
+    dropdown.appendChild(header);
 
-          const nameSpan = document.createElement('span');
-          nameSpan.className = 'quick-cmd-name';
-          nameSpan.textContent = cmd.name;
-          nameSpan.title = `Ausfuehren: ${cmd.command}`;
-          nameSpan.addEventListener('click', (e) => {
-            e.stopPropagation();
-            this._executeCommand(cmd.command);
-            this._closeAllDropdowns();
-          });
+    // Commands
+    if (cat.commands && cat.commands.length) {
+      for (const cmd of cat.commands) {
+        const cmdEl = document.createElement('div');
+        cmdEl.className = 'quick-cmd-item';
 
+        const nameSpan = document.createElement('span');
+        nameSpan.className = 'quick-cmd-name';
+        nameSpan.textContent = cmd.name;
+        nameSpan.title = `Ausführen: ${cmd.command}`;
+        nameSpan.addEventListener('click', (e) => {
+          e.stopPropagation();
+          this._executeCommand(cmd.command);
+          this._closeAllDropdowns();
+        });
+
+        cmdEl.appendChild(nameSpan);
+
+        if (editable) {
           const actions = document.createElement('div');
           actions.className = 'quick-cmd-actions';
 
@@ -180,7 +220,7 @@ const QuickCon = {
 
           const delBtn = document.createElement('button');
           delBtn.textContent = '\u2716';
-          delBtn.title = 'Befehl loeschen';
+          delBtn.title = 'Befehl löschen';
           delBtn.addEventListener('click', async (e) => {
             e.stopPropagation();
             await fetch(`/api/quick-categories/${cat.id}/commands/${cmd.id}`, { method: 'DELETE' });
@@ -189,32 +229,32 @@ const QuickCon = {
 
           actions.appendChild(editBtn);
           actions.appendChild(delBtn);
-          cmdEl.appendChild(nameSpan);
           cmdEl.appendChild(actions);
-          dropdown.appendChild(cmdEl);
         }
-      } else {
-        const empty = document.createElement('div');
-        empty.style.cssText = 'padding:8px 10px;font-size:11px;color:#666;';
-        empty.textContent = 'Keine Befehle';
-        dropdown.appendChild(empty);
-      }
 
-      catEl.appendChild(btn);
-      catEl.appendChild(dropdown);
-      container.appendChild(catEl);
+        dropdown.appendChild(cmdEl);
+      }
+    } else {
+      const empty = document.createElement('div');
+      empty.style.cssText = 'padding:8px 10px;font-size:11px;color:#666;';
+      empty.textContent = 'Keine Befehle';
+      dropdown.appendChild(empty);
     }
+
+    catEl.appendChild(btn);
+    catEl.appendChild(dropdown);
+    return catEl;
   },
 
-  _toggleDropdown(catId) {
-    const dd = document.getElementById(`quick-dd-${catId}`);
+  _toggleDropdown(ddId) {
+    const dd = document.getElementById(`quick-dd-${ddId}`);
     if (!dd) return;
 
     const isOpen = dd.classList.contains('open');
     this._closeAllDropdowns();
     if (!isOpen) {
       dd.classList.add('open');
-      this.openDropdownId = catId;
+      this.openDropdownId = ddId;
     }
   },
 
