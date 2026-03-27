@@ -171,13 +171,13 @@ Themes werden per `localStorage` gespeichert und wirken sich auf die gesamte UI,
 
 ### v1.2.0
 
-- **Multiview** — Mehrere Terminal-Sessions gleichzeitig in einem neuen Browser-Tab anzeigen (2–6 Sessions):
-  - 2-stufiger Wizard: Session-Auswahl + Layout-Picker mit 16 vordefinierten Rastern und SVG-Vorschau
-  - Drag-and-Drop Slot-Anordnung im Wizard
+- **Multiview** — Mehrere Terminal-Sessions gleichzeitig in einem neuen Browser-Tab anzeigen:
+  - 2-stufiger Wizard: Session-Auswahl (unbegrenzt) + Layout-Picker
+  - 2–6 Sessions: 16 vordefinierte Raster mit SVG-Vorschau und Drag-and-Drop Slot-Anordnung
+  - 7+ Sessions: Freies Raster-Layout per Spalten-/Zeilen-Stepper (Startwert: kleinstes passendes quadratisches Raster); Slot-Anordnung per Drag-and-Drop
   - Eigenständige `/multiview`-Seite mit CSS-Grid-Layout
   - Verschiebbare Resize-Handles zwischen Terminals (horizontal & vertikal)
-  - Focus-Indikator: aktives Terminal hervorgehoben, Tastatureingabe nur ans fokussierte Terminal
-  - Theme-Vererbung und Scrollback-Replay beim Öffnen
+  - Focus-Indikator, Scrollback-Replay, Theme-Vererbung
 
 ### v1.1.0
 

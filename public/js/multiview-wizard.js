@@ -46,6 +46,9 @@ const MultiviewWizard = {
     const list = document.getElementById('mvSessionList');
     list.innerHTML = '';
 
+    const hint = document.getElementById('mvStep1Hint');
+    hint.textContent = 'Mindestens 2 Sessions auswählen.';
+
     if (typeof Tabs === 'undefined' || Tabs.sessions.size === 0) {
       list.innerHTML =
         '<p class="mv-empty">Keine aktiven Sessions vorhanden.<br>Stelle zuerst SSH-Verbindungen her.</p>';
@@ -77,7 +80,6 @@ const MultiviewWizard = {
       this._selected.splice(idx, 1);
       card.classList.remove('selected');
     } else {
-      if (this._selected.length >= 6) return; // max 6
       this._selected.push(sessionId);
       card.classList.add('selected');
     }
@@ -89,9 +91,10 @@ const MultiviewWizard = {
     btn.disabled = this._selected.length < 2;
     const hint = document.getElementById('mvStep1Hint');
     const n = this._selected.length;
-    if (n === 0) hint.textContent = 'Mindestens 2 aktive Sessions auswählen (max. 6).';
+    if (n === 0) hint.textContent = 'Mindestens 2 Sessions auswählen.';
     else if (n === 1) hint.textContent = '1 Session gewählt — noch 1 weitere auswählen.';
-    else hint.textContent = `${n} Sessions gewählt. Bereit für Schritt 2.`;
+    else if (n <= 6) hint.textContent = `${n} Sessions gewählt. Bereit für Schritt 2.`;
+    else hint.textContent = `${n} Sessions gewählt. Layout wird im nächsten Schritt konfiguriert.`;
   },
 
   _goNext() {
@@ -117,8 +120,73 @@ const MultiviewWizard = {
     document.getElementById('mvWizardTitle').textContent =
       'Multiview – Schritt 2: Layout & Anordnung';
 
-    this._renderLayoutPicker(this._selected.length);
+    const n = this._selected.length;
+    if (n >= 7) {
+      this._renderCustomGridPicker(n);
+    } else {
+      this._renderLayoutPicker(n);
+    }
     this._renderSlots();
+  },
+
+  _renderCustomGridPicker(n) {
+    const defaultCols = Math.ceil(Math.sqrt(n));
+    const defaultRows = Math.ceil(n / defaultCols);
+    let cols = defaultCols;
+    let rows = defaultRows;
+
+    const picker = document.getElementById('mvLayoutPicker');
+    picker.innerHTML = `
+      <div class="mv-custom-grid">
+        <div class="mv-grid-controls">
+          <div class="mv-grid-control">
+            <span class="mv-grid-label">Spalten</span>
+            <div class="mv-grid-stepper">
+              <button class="mv-step-btn" id="mvColsMinus">−</button>
+              <span class="mv-step-val" id="mvColsVal">${cols}</span>
+              <button class="mv-step-btn" id="mvColsPlus">+</button>
+            </div>
+          </div>
+          <span class="mv-grid-times">×</span>
+          <div class="mv-grid-control">
+            <span class="mv-grid-label">Zeilen</span>
+            <div class="mv-grid-stepper">
+              <button class="mv-step-btn" id="mvRowsMinus">−</button>
+              <span class="mv-step-val" id="mvRowsVal">${rows}</span>
+              <button class="mv-step-btn" id="mvRowsPlus">+</button>
+            </div>
+          </div>
+        </div>
+        <div class="mv-grid-info" id="mvGridInfo"></div>
+      </div>`;
+
+    const update = () => {
+      const total = cols * rows;
+      const empty = total - n;
+      document.getElementById('mvColsVal').textContent = cols;
+      document.getElementById('mvRowsVal').textContent = rows;
+      const info = document.getElementById('mvGridInfo');
+      if (total < n) {
+        info.textContent = `${cols}×${rows} = ${total} Slots — zu wenig für ${n} Sessions`;
+        info.className = 'mv-grid-info mv-grid-info-error';
+        this._layout = null;
+        document.getElementById('btnMvOpen').disabled = true;
+      } else {
+        info.textContent = empty > 0
+          ? `${cols}×${rows} = ${total} Slots (${n} genutzt, ${empty} leer)`
+          : `${cols}×${rows} = ${total} Slots`;
+        info.className = 'mv-grid-info mv-grid-info-ok';
+        this._layout = `grid:${cols}x${rows}`;
+        document.getElementById('btnMvOpen').disabled = false;
+      }
+      this._renderSlots();
+    };
+
+    document.getElementById('mvColsMinus').addEventListener('click', () => { if (cols > 1) { cols--; update(); } });
+    document.getElementById('mvColsPlus').addEventListener('click',  () => { cols++; update(); });
+    document.getElementById('mvRowsMinus').addEventListener('click', () => { if (rows > 1) { rows--; update(); } });
+    document.getElementById('mvRowsPlus').addEventListener('click',  () => { rows++; update(); });
+    update();
   },
 
   _renderLayoutPicker(n) {
@@ -325,6 +393,15 @@ const MultiviewWizard = {
   },
 
   _getLayoutDef(layoutId, n) {
+    // Custom grid for 7+ sessions: id format "grid:CxR"
+    if (layoutId && layoutId.startsWith('grid:')) {
+      const parts = layoutId.slice(5).split('x');
+      const c = parseInt(parts[0], 10);
+      const r = parseInt(parts[1], 10);
+      if (c && r) {
+        return { cols: c, rows: r, slots: Array.from({ length: n }, () => ({ colSpan: 1, rowSpan: 1 })) };
+      }
+    }
     const s = (c = 1, r = 1) => ({ colSpan: c, rowSpan: r });
     const defs = {
       '2col':      { cols: 2, rows: 1, slots: [s(), s()] },

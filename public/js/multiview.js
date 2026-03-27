@@ -45,10 +45,21 @@
     return;
   }
 
-  const def = LAYOUT_DEFS[layoutId];
+  const def = _resolveDef(layoutId, sessionIds.length);
   if (!def) {
     _showError('Unbekanntes Layout: ' + layoutId);
     return;
+  }
+
+  function _resolveDef(id, n) {
+    if (id && id.startsWith('grid:')) {
+      const parts = id.slice(5).split('x');
+      const c = parseInt(parts[0], 10);
+      const r = parseInt(parts[1], 10);
+      if (!c || !r) return null;
+      return { cols: c, rows: r, slots: Array.from({ length: n }, () => ({ colSpan: 1, rowSpan: 1 })) };
+    }
+    return LAYOUT_DEFS[id] || null;
   }
 
   // ── State ────────────────────────────────────────────────────────────────

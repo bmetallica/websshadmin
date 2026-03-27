@@ -2252,3 +2252,92 @@ body.share-mode #mainLayout {
   text-align: center;
   padding: 16px;
 }
+
+/* ── Custom grid picker (7+ sessions) ─────────────────────────────────────── */
+
+.mv-custom-grid {
+  padding: 4px 0;
+}
+
+.mv-grid-controls {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+
+.mv-grid-control {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+}
+
+.mv-grid-times {
+  font-size: 18px;
+  color: var(--text-muted);
+  margin-top: 18px;
+}
+
+.mv-grid-stepper {
+  display: flex;
+  align-items: center;
+  gap: 0;
+  background: var(--bg-input);
+  border: 1px solid var(--border-bright);
+  border-radius: var(--radius-sm);
+  overflow: hidden;
+}
+
+.mv-step-btn {
+  background: transparent;
+  border: none;
+  color: var(--accent);
+  font-size: 18px;
+  width: 34px;
+  height: 34px;
+  cursor: pointer;
+  transition: background var(--transition);
+  line-height: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.mv-step-btn:hover {
+  background: rgba(0, 234, 255, 0.1);
+}
+
+.mv-step-val {
+  min-width: 36px;
+  text-align: center;
+  font-size: 16px;
+  font-weight: 600;
+  color: var(--text);
+  font-family: 'JetBrains Mono', monospace;
+  border-left: 1px solid var(--border);
+  border-right: 1px solid var(--border);
+  padding: 0 4px;
+  height: 34px;
+  line-height: 34px;
+}
+
+.mv-grid-info {
+  margin-top: 12px;
+  font-size: 12px;
+  padding: 5px 10px;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--border);
+  display: inline-block;
+}
+
+.mv-grid-info-ok {
+  color: var(--accent-green);
+  border-color: rgba(0, 255, 157, 0.25);
+  background: rgba(0, 255, 157, 0.05);
+}
+
+.mv-grid-info-error {
+  color: var(--accent-pink);
+  border-color: rgba(255, 60, 120, 0.25);
+  background: rgba(255, 60, 120, 0.05);
+}
