@@ -1,0 +1,263 @@
+/* ============================================================
+   webSSHadmin – Multiview Page Styles
+   ============================================================ */
+
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap');
+
+* { margin: 0; padding: 0; box-sizing: border-box; }
+
+:root {
+  /* defaults – overridden by Theme.init() via CSS vars */
+  --bg-dark:        #0a0e1a;
+  --bg-panel:       rgba(13, 18, 36, 0.95);
+  --bg-panel-solid: #0d1224;
+  --bg-input:       rgba(15, 25, 50, 0.9);
+  --border:         rgba(0, 234, 255, 0.12);
+  --border-bright:  rgba(0, 234, 255, 0.30);
+  --accent:         #00eaff;
+  --accent-secondary: #7b61ff;
+  --accent-pink:    #ff3c78;
+  --accent-green:   #00ff9d;
+  --glow-accent:    0 0 20px rgba(0, 234, 255, 0.15);
+  --text:           #e4e8f1;
+  --text-dim:       rgba(180, 190, 210, 0.7);
+  --text-muted:     rgba(130, 145, 170, 0.5);
+  --grid-color:     rgba(0, 234, 255, 0.03);
+  --titlebar-h:     36px;
+  --radius-sm:      5px;
+  --transition:     0.2s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+html, body {
+  height: 100%;
+  background: var(--bg-dark);
+  color: var(--text);
+  font-family: 'Inter', system-ui, -apple-system, sans-serif;
+  font-size: 14px;
+  overflow: hidden;
+  -webkit-font-smoothing: antialiased;
+}
+
+body::before {
+  content: '';
+  position: fixed;
+  inset: 0;
+  background-image:
+    linear-gradient(var(--grid-color) 1px, transparent 1px),
+    linear-gradient(90deg, var(--grid-color) 1px, transparent 1px);
+  background-size: 40px 40px;
+  pointer-events: none;
+  z-index: 0;
+}
+
+/* ── Title bar ─────────────────────────────────────────────────────────────── */
+
+#mvTitleBar {
+  position: relative;
+  z-index: 10;
+  height: var(--titlebar-h);
+  background: var(--bg-panel);
+  backdrop-filter: blur(16px);
+  border-bottom: 1px solid var(--border);
+  display: flex;
+  align-items: center;
+  padding: 0 14px;
+  gap: 8px;
+  flex-shrink: 0;
+}
+
+.mv-logo {
+  font-weight: 700;
+  font-size: 13px;
+  letter-spacing: 1.5px;
+  text-transform: uppercase;
+  background: linear-gradient(135deg, var(--accent) 0%, var(--accent-secondary) 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+  filter: drop-shadow(0 0 6px rgba(0, 234, 255, 0.3));
+}
+
+.mv-sep {
+  color: var(--text-muted);
+  font-size: 12px;
+}
+
+.mv-title-text {
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--text-dim);
+  letter-spacing: 0.5px;
+}
+
+.mv-badge {
+  font-size: 11px;
+  color: var(--text-muted);
+  background: rgba(0, 234, 255, 0.07);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 1px 8px;
+}
+
+.mv-title-right {
+  margin-left: auto;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.mv-conn-status {
+  font-size: 11px;
+  color: var(--text-muted);
+  font-family: 'JetBrains Mono', monospace;
+}
+
+.mv-conn-status.connected { color: var(--accent-green); }
+.mv-conn-status.disconnected { color: var(--accent-pink); }
+
+/* ── Main grid container ───────────────────────────────────────────────────── */
+
+#mvGrid {
+  position: relative;
+  z-index: 1;
+  display: grid;
+  gap: 4px;
+  padding: 4px;
+  height: calc(100vh - var(--titlebar-h));
+  background: rgba(0, 0, 0, 0.3);
+  overflow: hidden;
+}
+
+/* ── Terminal cell ─────────────────────────────────────────────────────────── */
+
+.mv-cell {
+  display: flex;
+  flex-direction: column;
+  background: var(--bg-panel-solid);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  overflow: hidden;
+  transition: border-color var(--transition);
+  min-width: 0;
+  min-height: 0;
+  position: relative;
+}
+
+.mv-cell:hover {
+  border-color: var(--border-bright);
+}
+
+.mv-cell.focused {
+  border-color: var(--accent);
+  box-shadow: var(--glow-accent), 0 0 0 1px rgba(0, 234, 255, 0.15);
+}
+
+.mv-cell-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 3px 10px;
+  background: rgba(0, 0, 0, 0.25);
+  border-bottom: 1px solid var(--border);
+  flex-shrink: 0;
+  height: 24px;
+  user-select: none;
+}
+
+.mv-cell-name {
+  font-size: 11px;
+  font-weight: 500;
+  color: var(--text-dim);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.mv-cell.focused .mv-cell-name {
+  color: var(--accent);
+}
+
+.mv-cell-host {
+  font-size: 10px;
+  color: var(--text-muted);
+  font-family: 'JetBrains Mono', monospace;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.mv-cell-dot {
+  margin-left: auto;
+  font-size: 8px;
+  color: var(--accent-green);
+  flex-shrink: 0;
+}
+
+.mv-cell.ended .mv-cell-dot {
+  color: var(--accent-pink);
+}
+
+.mv-cell-terminal {
+  flex: 1;
+  overflow: hidden;
+  min-height: 0;
+  padding: 2px;
+}
+
+/* xterm overrides inside cells */
+.mv-cell-terminal .xterm {
+  height: 100%;
+}
+
+.mv-cell-terminal .xterm-viewport {
+  overflow-y: scroll;
+}
+
+/* ── Resize handles ────────────────────────────────────────────────────────── */
+
+.mv-resize-handle {
+  position: absolute;
+  z-index: 100;
+  background: transparent;
+  transition: background var(--transition);
+}
+
+.mv-resize-v {
+  width: 6px;
+  top: 0;
+  bottom: 0;
+  cursor: ew-resize;
+}
+
+.mv-resize-h {
+  height: 6px;
+  left: 0;
+  right: 0;
+  cursor: ns-resize;
+}
+
+.mv-resize-handle:hover,
+.mv-resize-handle.dragging {
+  background: rgba(0, 234, 255, 0.2);
+}
+
+/* ── Error overlay ─────────────────────────────────────────────────────────── */
+
+#mvError {
+  position: fixed;
+  inset: 0;
+  z-index: 50;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--bg-dark);
+  padding: 32px;
+}
+
+#mvErrorText {
+  font-size: 14px;
+  color: var(--accent-pink);
+  text-align: center;
+  max-width: 420px;
+  line-height: 1.6;
+}

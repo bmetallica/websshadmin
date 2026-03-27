@@ -98,6 +98,14 @@ app.get('/app', (req, res) => {
   return res.redirect('/' + qs);
 });
 
+// Multiview page – authenticated users only
+app.get('/multiview', (req, res) => {
+  if (!(req.session && req.session.authenticated)) {
+    return res.redirect('/');
+  }
+  res.sendFile(path.join(__dirname, '..', 'public', 'multiview.html'));
+});
+
 // Protected API routes
 app.use('/api/connections', requireAuth, require('./routes/connections'));
 app.use('/api/quick-categories', requireAuth, require('./routes/quickCommands'));

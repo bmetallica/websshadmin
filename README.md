@@ -8,6 +8,18 @@ Ein modernes, funktionsreiches webbasiertes SSH-Management-System mit Multi-User
 
 ## Features
 
+### Multiview
+
+- **Multiview-Fenster** — Mehrere Terminal-Sessions gleichzeitig nebeneinander in einem eigenen Browser-Tab anzeigen
+- **Wizard (2 Schritte)** — Sessions auswählen (2–6), Layout wählen, Anordnung per Drag-and-Drop festlegen → öffnet sich als separater Tab
+- **16 Layouts** — Vordefinierte Raster für 2–6 Sessions: nebeneinander, übereinander, 2×2, 3×2, gemischte Spans (z.B. "2 oben / 1 unten") und mehr
+- **SVG Layout-Vorschau** — Jedes Layout wird als Miniatur-Icon visualisiert
+- **Resize-Handles** — Trennlinien zwischen Terminals per Drag verschiebbar (horizontal und vertikal)
+- **Focus-Indikator** — Aktives Terminal wird farblich hervorgehoben; nur das fokussierte Terminal empfängt Tastatureingaben
+- **Scrollback-Replay** — Beim Öffnen wird der Terminal-Verlauf aller Sessions wiederhergestellt
+- **Reconnect-Anzeige** — Automatische Reconnect-Versuche werden in der Terminal-Titelleiste angezeigt
+- **Theme-Vererbung** — Multiview-Seite übernimmt das aktuelle Theme aus dem localStorage
+
 ### Terminal & Sessions
 
 - **Multi-Tab SSH Sessions** — Mehrere SSH-Verbindungen gleichzeitig in Tabs verwalten
@@ -156,6 +168,16 @@ Themes werden per `localStorage` gespeichert und wirken sich auf die gesamte UI,
 ---
 
 ## Changelog
+
+### v1.2.0
+
+- **Multiview** — Mehrere Terminal-Sessions gleichzeitig in einem neuen Browser-Tab anzeigen (2–6 Sessions):
+  - 2-stufiger Wizard: Session-Auswahl + Layout-Picker mit 16 vordefinierten Rastern und SVG-Vorschau
+  - Drag-and-Drop Slot-Anordnung im Wizard
+  - Eigenständige `/multiview`-Seite mit CSS-Grid-Layout
+  - Verschiebbare Resize-Handles zwischen Terminals (horizontal & vertikal)
+  - Focus-Indikator: aktives Terminal hervorgehoben, Tastatureingabe nur ans fokussierte Terminal
+  - Theme-Vererbung und Scrollback-Replay beim Öffnen
 
 ### v1.1.0
 
@@ -347,8 +369,13 @@ server {
 webSSHadmin/
 ├── public/                    # Frontend
 │   ├── css/main.css          # Alle Styles (Theme-fähig via CSS-Variablen)
+│   ├── css/
+│   │   ├── main.css          # Alle Styles inkl. Multiview-Wizard (Theme-fähig)
+│   │   └── multiview.css     # Stile für die eigenständige Multiview-Seite
 │   ├── js/
 │   │   ├── app.js            # Hauptinitialisierung, Socket-Events, Rollen-Logik
+│   │   ├── multiview-wizard.js # Wizard-Logik (Session-Auswahl, Layout-Picker, D&D)
+│   │   ├── multiview.js      # Multiview-Seite: Grid, Terminal-Attach, Resize-Handles
 │   │   ├── terminal.js       # xterm.js Terminal-Verwaltung
 │   │   ├── tabs.js           # Tab-Verwaltung (Rename, Drag-and-Drop)
 │   │   ├── conmen.js         # Verbindungsverwaltung (Sidebar, Gruppen-Credentials)
@@ -366,6 +393,7 @@ webSSHadmin/
 │   │   └── login.js          # Login-Formular (Lokal / AD)
 │   ├── vendor/               # xterm.js, Socket.io Client
 │   ├── app.html              # Hauptseite (nach Login)
+│   ├── multiview.html        # Eigenständige Multiview-Seite
 │   ├── index.html            # Login-Seite
 │   └── favicon.svg           # Neon-Gradient Favicon
 ├── server/
@@ -402,7 +430,7 @@ webSSHadmin/
 ├── config/                   # Konfiguration (Volume)
 ├── Dockerfile
 ├── docker-compose.yml
-└── build_and_push.sh         # Build + Registry-Push Skript
+└── build-push.sh             # Build + Registry-Push Skript
 ```
 
 ---

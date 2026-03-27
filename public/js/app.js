@@ -28,6 +28,7 @@
     UserMen.init();
     if (typeof GroupMen !== 'undefined') GroupMen.init();
     if (typeof Sharing !== 'undefined') Sharing.init(socket);
+    if (typeof MultiviewWizard !== 'undefined') MultiviewWizard.init();
   }
 
   // Fetch user role and apply restrictions (skip in share mode)

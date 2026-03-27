@@ -31,6 +31,7 @@
         </div>
       </div>
       <button class="btn-header" id="btnPorts" title="Port Dashboard">&#128268;</button>
+      <button class="btn-header" id="btnMultiview" title="Multiview öffnen">&#10697;</button>
       <button class="btn-header" id="btnFullscreen" title="Vollbild">&#x26F6;</button>
       <button class="btn-header" id="btnSftp" title="SFTP Dateibrowser">&#128193;</button>
       <div class="settings-wrapper">
@@ -621,6 +622,41 @@
     </div>
   </div>
 
+  <!-- Multiview Wizard Modal -->
+  <div id="mvWizardOverlay" class="modal-overlay" style="display:none">
+    <div class="mv-wizard">
+      <div class="mv-wizard-header">
+        <h3 id="mvWizardTitle">Multiview – Schritt 1: Sessions wählen</h3>
+        <button class="btn-icon" id="btnMvWizardClose" title="Schliessen">&times;</button>
+      </div>
+      <div class="mv-wizard-body">
+        <!-- Step 1: Session Selection -->
+        <div id="mvStep1">
+          <p id="mvStep1Hint" class="mv-step1-hint">Mindestens 2 aktive Sessions auswählen (max. 6).</p>
+          <div class="mv-session-list" id="mvSessionList"></div>
+        </div>
+        <!-- Step 2: Layout + Arrangement -->
+        <div id="mvStep2" style="display:none">
+          <div class="mv-layout-section">
+            <div class="mv-section-label">Layout</div>
+            <div class="mv-layout-picker" id="mvLayoutPicker"></div>
+          </div>
+          <div class="mv-slot-section">
+            <div class="mv-section-label">Anordnung</div>
+            <div id="mvSlotArrangement">
+              <p class="mv-empty">Wähle zuerst ein Layout.</p>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="mv-wizard-footer">
+        <button class="btn-cancel" id="btnMvBack" style="display:none">&#9664; Zurück</button>
+        <button class="btn-confirm" id="btnMvNext" disabled>Weiter &#9654;</button>
+        <button class="btn-confirm" id="btnMvOpen" style="display:none" disabled>&#10697; Öffnen</button>
+      </div>
+    </div>
+  </div>
+
   <script src="https://cdnjs.cloudflare.com/ajax/libs/ace/1.36.5/ace.js"></script>
   <script src="/vendor/xterm.js"></script>
   <script src="/vendor/xterm-addon-fit.js"></script>
@@ -640,6 +676,7 @@
   <script src="/js/groupmen.js"></script>
   <script src="/js/sharing.js"></script>
   <script src="/js/bookmarks.js"></script>
+  <script src="/js/multiview-wizard.js"></script>
   <script src="/js/app.js"></script>
 </body>
 </html>
