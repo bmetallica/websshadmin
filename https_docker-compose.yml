@@ -1,0 +1,29 @@
+services:
+  web-ssh:
+    image: bmetallica/websshadmin:latest
+    # network_mode: host wurde entfernt!
+    environment:
+      - PORT=2222
+      - DB_PATH=/app/data/database.sqlite
+      - SCRIPTS_PATH=/app/scripts
+      - AD_ENABLED=false
+    volumes:
+      - ./scripts:/app/scripts
+      - ./config:/app/config
+      - ./data:/app/data
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+    restart: always
+    expose:
+      - "2222" # Macht den Port nur INTERN für Nginx verfügbar
+
+  nginx-proxy:
+    image: nginx:alpine
+    container_name: nginx-ssh-proxy
+    ports:
+      - "2222:2222" # Extern greifen wir über Port 2222 (HTTPS) zu
+    volumes:
+      - ./nginx.conf:/etc/nginx/nginx.conf:ro
+      - ./certs:/etc/nginx/certs:ro
+    depends_on:
+      - web-ssh
+    restart: always
