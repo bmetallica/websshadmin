@@ -217,6 +217,24 @@ Themes werden per `localStorage` gespeichert und wirken sich auf die gesamte UI,
 
 ### Option A: Docker Hub (empfohlen)
 
+#### nur HTTPS - Self-Signed Certificate- (empfohlen)
+
+```bash
+mkdir /opt/websshadmin
+mkdir /opt/websshadmin/certs
+cd /opt/websshadmin
+openssl req -x509 -nodes -days 365 -newkey rsa:2048 -keyout certs/server.key -out certs/server.crt -subj "/C=DE/ST=Default/L=Default/O=WebSSH/CN=localhost"
+wget https://raw.githubusercontent.com/bmetallica/websshadmin/refs/heads/main/nginx.conf
+wget https://raw.githubusercontent.com/bmetallica/websshadmin/refs/heads/main/https_docker-compose.yml
+mv https_docker-compose.yml docker-compose.yml
+docker compose up -d
+
+```
+
+
+
+#### nur HTTP (unsicher)
+
 Das fertige Image direkt von Docker Hub verwenden:
 
 ```bash
