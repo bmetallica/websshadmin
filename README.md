@@ -23,7 +23,7 @@ Ein modernes, funktionsreiches webbasiertes SSH-Management-System mit Multi-User
 ### Terminal & Sessions
 
 - **Multi-Tab SSH Sessions** — Mehrere SSH-Verbindungen gleichzeitig in Tabs verwalten
-- **Ctrl+W Schutz** — Browser-Shortcut Ctrl+W wird abgefangen bevor er den Tab schließt; in Firefox erscheint ein Bestätigungsdialog, zusätzlich ein „Strg+W"-Button im Terminal der das Zeichen direkt durchgibt
+- **Ctrl+W & Co.** — `Alt+<Buchstabe>` sendet in jedem Browser den passenden Control-Code (`Alt+W` = `Strg+W`, z.B. für die nano-Suche), da Chrome, Edge und Firefox `Strg+W/T/N` selbst abfangen; zusätzlich ein „Strg+W"-Button im Terminal und ein Bestätigungsdialog beim Schließen mit offenen Sessions
 - **Tab-Rename** — Doppelklick auf Tab-Label zum Umbenennen
 - **Drag-and-Drop Tabs** — Tab-Reihenfolge per Drag-and-Drop ändern
 - **Fullscreen-Modus** — Maximiert den Terminal-Bereich, Escape zum Verlassen
