@@ -28,8 +28,12 @@
     UserMen.init();
     if (typeof GroupMen !== 'undefined') GroupMen.init();
     if (typeof Sharing !== 'undefined') Sharing.init(socket);
+    if (typeof Schedules !== 'undefined') Schedules.init(socket);
     if (typeof MultiviewWizard !== 'undefined') MultiviewWizard.init();
   }
+
+  // Chat: init for everyone (host + viewer/coworker)
+  if (typeof Chat !== 'undefined') Chat.init(socket);
 
   // Fetch user role and apply restrictions (skip in share mode)
   if (!window._shareMode) {
@@ -74,6 +78,24 @@
     }
   });
 
+  // Alt-als-Strg-Ersatz (Workaround für browser-reservierte Kürzel wie Strg+W)
+  const chkAltAsCtrl = document.getElementById('chkAltAsCtrl');
+  if (chkAltAsCtrl) {
+    chkAltAsCtrl.checked = Terminal.altAsCtrl;
+    chkAltAsCtrl.addEventListener('change', () => Terminal.setAltAsCtrl(chkAltAsCtrl.checked));
+    chkAltAsCtrl.closest('.settings-item').addEventListener('click', (e) => e.stopPropagation());
+  }
+
+  // Umschalter auf die mobile Oberfläche
+  const btnMobileView = document.getElementById('settingsMobileView');
+  if (btnMobileView) {
+    btnMobileView.addEventListener('click', () => {
+      document.cookie = 'viewMode=mobile;path=/;max-age=' + 60 * 60 * 24 * 365 + ';samesite=lax';
+      Terminal._intentionalNavigation = true;
+      location.href = '/m';
+    });
+  }
+
   // Convert title attributes to data-tip for custom tooltips (no native delay)
   function convertTitles(root) {
     root.querySelectorAll('[title]').forEach(el => {
@@ -117,6 +139,11 @@
     // If in share-only mode, enter minimal UI
     if (window._shareMode) {
       document.body.classList.add('share-mode');
+      // store sessionId for chat module
+      window._activeChatSessionId = sessionId;
+      if (typeof Chat !== 'undefined') {
+        Chat.switchSession(sessionId);
+      }
     }
   });
 

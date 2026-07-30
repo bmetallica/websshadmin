@@ -187,6 +187,7 @@ function _endSession(sessionId, reason) {
   const state = sessions.get(sessionId);
   if (!state) return;
   stopPolling(sessionId);
+  require('./commandScheduler').cleanupSession(sessionId);
   sessions.delete(sessionId);
   for (const socketId of state.attachedSockets) {
     const socket = _io && _io.sockets.sockets.get(socketId);
@@ -341,6 +342,7 @@ function killSession(sessionId) {
   const state = sessions.get(sessionId);
   if (!state) return;
   stopPolling(sessionId);
+  require('./commandScheduler').cleanupSession(sessionId);
   if (state.tunnelServer) state.tunnelServer.close();
   state.shellStream.close();
   state.sshClient.end();
@@ -352,6 +354,19 @@ function writeToSession(sessionId, data) {
   if (state && state.shellStream && state.shellStream.writable) {
     state.shellStream.write(data);
   }
+}
+
+// Event an alle Sockets einer Session (Owner + geteilte Sockets)
+function emitToSession(sessionId, event, data) {
+  _emitToAttached(sessionId, event, data);
+}
+
+// Text in Scrollback schreiben UND an alle Clients senden (z.B. Statusmarker)
+function writeMarker(sessionId, text) {
+  const state = sessions.get(sessionId);
+  if (!state) return;
+  state.scrollbackBuffer += text;
+  _emitToAttached(sessionId, 'terminal:data', { sessionId, data: text });
 }
 
 function resizeSession(sessionId, cols, rows) {
@@ -371,7 +386,7 @@ function getIO() { return _io; }
 module.exports = {
   createSession, getSession, getAllSessions, getSessionsForUser,
   attachSocket, detachSocket, killSession,
-  writeToSession, resizeSession,
+  writeToSession, resizeSession, emitToSession, writeMarker,
   isSessionOwner, getSessionRole,
   attachSharedSocket, detachSharedSocket, updateSharedRole, revokeSharedToken,
   setIO, getIO,

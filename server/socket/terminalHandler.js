@@ -1,6 +1,7 @@
 const sessionManager = require('../services/sessionManager');
 const { startPolling } = require('../services/statsPoller');
 const db = require('../db');
+const chatHandler = require('./chatHandler');
 
 module.exports = function (io, socket) {
   // Store io reference for session manager
@@ -83,7 +84,8 @@ module.exports = function (io, socket) {
       const state = await sessionManager.createSession(profile, socket.userId);
       sessionManager.attachSocket(state.id, socket.id);
       startPolling(state.id);
-
+    const history = chatHandler.getHistory(state.id);
+    if (history.length) socket.emit('chat:history', { messages: history });
       socket.emit('session:created', {
         sessionId: state.id,
         connectionName: state.connectionName,
@@ -109,6 +111,9 @@ module.exports = function (io, socket) {
     if (state.scrollbackBuffer) {
       socket.emit('terminal:replay', { sessionId, data: state.scrollbackBuffer });
     }
+    // Send chat history
+    const chatHistory = chatHandler.getHistory(sessionId);
+    if (chatHistory.length) socket.emit('chat:history', { messages: chatHistory });
   });
 
   socket.on('session:detach', ({ sessionId }) => {
@@ -170,5 +175,8 @@ module.exports = function (io, socket) {
       host: state.host,
       scrollback: state.scrollbackBuffer || '',
     });
+    // Send chat history
+    const chatHistory = chatHandler.getHistory(shareRow.session_id);
+    socket.emit('chat:history', { messages: chatHistory });
   });
 };

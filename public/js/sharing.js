@@ -8,11 +8,31 @@ const Sharing = {
 
     document.getElementById('btnCloseShareModal').addEventListener('click', () => this.close());
     document.getElementById('btnCreateShare').addEventListener('click', () => this._createShare());
+
+    // Reiter: Freigaben / Zeitgesteuerte Befehle
+    this.overlay.querySelectorAll('.modal-tab').forEach(tab => {
+      tab.addEventListener('click', () => this._showPane(tab.dataset.pane));
+    });
+  },
+
+  _showPane(paneId) {
+    this.overlay.querySelectorAll('.modal-tab').forEach(t => {
+      t.classList.toggle('active', t.dataset.pane === paneId);
+    });
+    this.overlay.querySelectorAll('.modal-pane').forEach(p => {
+      p.style.display = p.id === paneId ? '' : 'none';
+    });
+    if (paneId === 'sharePaneSchedules' && typeof Schedules !== 'undefined') {
+      Schedules.resetForm();
+      Schedules.load();
+    }
   },
 
   open(sessionId) {
     this.currentSessionId = sessionId;
     this.overlay.style.display = 'flex';
+    if (typeof Schedules !== 'undefined') Schedules.setSession(sessionId);
+    this._showPane('sharePaneShares');
     this._loadShares();
   },
 
@@ -40,6 +60,15 @@ const Sharing = {
   _renderShares(shares) {
     const list = document.getElementById('shareList');
     list.innerHTML = '';
+
+    // Update chat state based on current share count
+    if (typeof Chat !== 'undefined') {
+      if (shares.length > 0) {
+        Chat.activate(this.currentSessionId);
+      } else {
+        Chat.deactivate();
+      }
+    }
 
     if (shares.length === 0) {
       list.innerHTML = '<div style="color:var(--text-muted)">Keine aktiven Freigaben</div>';
@@ -96,6 +125,7 @@ const Sharing = {
       if (res.ok) {
         document.getElementById('shareLabel').value = '';
         await this._loadShares();
+        // Chat.activate is called inside _renderShares after reload
       }
     } catch { /* ignore */ }
   },

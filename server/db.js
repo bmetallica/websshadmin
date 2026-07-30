@@ -329,6 +329,37 @@ if (!hasMigration(13)) {
   markMigration(13, 'create_group_quick_categories_commands');
 }
 
+// Migration 14: Create scheduled_commands table (zeitgesteuerte Befehle pro Session)
+if (!hasMigration(14)) {
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS scheduled_commands (
+      id            INTEGER PRIMARY KEY AUTOINCREMENT,
+      session_id    TEXT    NOT NULL,
+      owner_id      INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+      label         TEXT,
+      command       TEXT    NOT NULL,
+      send_enter    INTEGER NOT NULL DEFAULT 1,
+      mark_terminal INTEGER NOT NULL DEFAULT 1,
+      schedule_type TEXT    NOT NULL DEFAULT 'once' CHECK(schedule_type IN ('once', 'daily')),
+      run_at        TEXT,
+      time_of_day   TEXT,
+      timezone      TEXT    NOT NULL DEFAULT 'UTC',
+      enabled       INTEGER NOT NULL DEFAULT 1,
+      status        TEXT    NOT NULL DEFAULT 'pending',
+      last_run_at   TEXT,
+      last_error    TEXT,
+      created_at    TEXT    NOT NULL DEFAULT (datetime('now'))
+    );
+
+    CREATE INDEX IF NOT EXISTS idx_sched_session ON scheduled_commands(session_id);
+  `);
+  markMigration(14, 'create_scheduled_commands');
+}
+
+// Session-IDs sind reine Laufzeit-UUIDs: nach einem Neustart existiert keine der
+// referenzierten Sessions mehr, die Zeitpläne wären Karteileichen.
+db.prepare('DELETE FROM scheduled_commands').run();
+
 // Encrypt any plaintext SSH credentials in connections table
 const { migrateConnections } = require('./services/encryption');
 migrateConnections(db);

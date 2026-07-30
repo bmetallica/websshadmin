@@ -59,6 +59,27 @@ Ein modernes, funktionsreiches webbasiertes SSH-Management-System mit Multi-User
 - **Rollen-Upgrade** — Viewer kann nachträglich zum Coworker hochgestuft werden
 - **Token-Verwaltung** — Aktive Shares einsehen, kopieren und widerrufen
 
+### Zeitgesteuerte Befehle
+
+- **Pro Session terminieren** — Im „Session teilen"-Popup unter dem Reiter *Zeitgesteuerte Befehle*
+- **Einmalig oder täglich** — Fester Zeitpunkt (Datum + Uhrzeit) oder jeden Tag zur selben Uhrzeit
+- **Beliebiger Text** — Mehrzeilige Eingaben; jede Zeile wird nacheinander gesendet
+- **Enter optional** — „mit Enter bestätigen" führt den Befehl aus; ohne Enter wird der Text nur in die Eingabezeile gelegt
+- **Zeitzonensicher** — Die Uhrzeit gilt immer in der Zeitzone des Browsers, unabhängig davon, auf welcher Zeitzone der Container läuft (inkl. Sommer-/Winterzeit)
+- **Kontrolle** — Ausführungsmarker im Terminal, Status (geplant/erledigt/Fehler), Pausieren, „jetzt ausführen" als Testlauf
+- **Nur der Besitzer** — Viewer und Coworker können keine Zeitpläne sehen oder anlegen
+- Zeitpläne sind an die Session gebunden und werden mit ihr verworfen
+
+### Mobile Oberfläche (PWA)
+
+- **Eigene Ansicht unter `/m`** — Smartphones werden automatisch dorthin geleitet, die Desktop-UI bleibt unverändert
+- **Umschaltbar** — „Desktop-Ansicht" bzw. „Mobile Ansicht" im jeweiligen Menü (wird per Cookie gemerkt)
+- **Sondertasten-Leiste** — Esc, Tab, Strg, Alt, Pfeiltasten, Entf, Pos1/Ende, Bild↑/↓, Strg+C/D/W/Z/R/L/X/O, `| ~ / \ - _ * $` und F1–F12
+- **Sticky-Modifier** — Strg/Alt kurz antippen gilt für die nächste Taste (auch von der Bildschirmtastatur), langes Drücken rastet ein
+- **Tastatur-tauglich** — Layout folgt der eingeblendeten Bildschirmtastatur (`visualViewport`), kein Pull-to-Refresh, kein Doppeltipp-Zoom
+- **Funktionsumfang** — Verbindungen, Sessions, Stats, SFTP, Teilen inkl. Zeitpläne, Chat, Theme-Wechsel, Schriftgröße
+- **Installierbar** — „Zum Startbildschirm hinzufügen" startet die App in einem eigenen Fenster ohne Browserleiste
+
 ### SFTP Dateibrowser
 
 - **Datei-Navigation** — Vor/Zurück, Übergeordneter Ordner, Home-Verzeichnis, direkter Pfad
@@ -169,6 +190,32 @@ Themes werden per `localStorage` gespeichert und wirken sich auf die gesamte UI,
 
 ## Changelog
 
+### v1.3.0
+
+- **Zeitgesteuerte Befehle** — Pro Session können Texte/Befehle terminiert werden (einmalig oder täglich),
+  optional mit Enter-Bestätigung. Bedienung im „Session teilen"-Popup, neuer Reiter *Zeitgesteuerte Befehle*:
+  - Zeitzone kommt vom Browser (IANA), damit „02:23 Uhr" auch bei einem Container auf UTC stimmt — inkl. DST
+  - Ein zentraler Scheduler-Tick (5 s) statt Timer pro Eintrag; Ausführungsmarker im Terminal
+  - Status geplant/erledigt/Fehler, Pausieren, Löschen und „jetzt ausführen" als Testlauf
+  - Zeitpläne gehören dem Session-Besitzer und werden mit der Session gelöscht
+- **Mobile Oberfläche + PWA** — Eigenständige Seite `/m` speziell für Smartphones:
+  - Automatische Weiterleitung anhand des User-Agents, umschaltbar per Cookie; Desktop-UI unverändert
+  - Sondertasten-Leiste mit Pfeiltasten, Esc/Tab/Entf/Pos1/Ende/Bild↑↓, Strg-Kürzeln und F1–F12
+  - Sticky-Modifier für Strg/Alt (kurz = nächste Taste, lang = feststellen)
+  - Verbindungen, Sessions, Stats, SFTP, Teilen inkl. Zeitpläne und Chat
+  - `manifest.json` + minimaler Service Worker → installierbar als App (bewusst ohne Offline-Cache)
+- **Strg+W endgültig gelöst** — Die alte Chrome-Variante konnte nicht funktionieren, da Chrome, Edge und
+  Firefox `Strg+W/T/N` gar nicht an die Seite ausliefern bzw. `preventDefault()` ignorieren:
+  - `Alt+<Buchstabe>` sendet jetzt in allen Browsern den passenden Control-Code (`Alt+W` = `Strg+W` für die nano-Suche);
+    abschaltbar unter Einstellungen → Terminal
+  - Der „Strg+W"-Button ist nicht mehr Firefox-exklusiv, sondern immer verfügbar
+  - `beforeunload`-Schutz gilt jetzt in allen Browsern, solange Sessions offen sind
+  - Read-only-Sessions und Tastenkürzel teilen sich einen Key-Handler (vorher hat die Viewer-Logik das Mapping überschrieben)
+- **Keine externen Abhängigkeiten mehr** — Der webSSHadmin läuft vollständig ohne Internetzugang:
+  - Ace-Editor liegt unter `public/vendor/ace/` statt von cdnjs
+  - Inter und JetBrains Mono liegen als woff2 unter `public/vendor/fonts/` statt von Google Fonts
+  - CSP entsprechend verschärft (keine externen Hosts mehr erlaubt)
+
 ### v1.2.0
 
 - **Multiview** — Mehrere Terminal-Sessions gleichzeitig in einem neuen Browser-Tab anzeigen:
@@ -185,9 +232,8 @@ Themes werden per `localStorage` gespeichert und wirken sich auf die gesamte UI,
   - Erweiterte `serverHostKey`-Algorithmen inkl. `ssh-rsa`
   - Erweiterte Key-Exchange-Algorithmen inkl. `diffie-hellman-group14-sha1` und `diffie-hellman-group1-sha1`
   - `keyboard-interactive` Authentifizierung als Fallback wenn `PasswordAuthentication` deaktiviert ist
-- **Ctrl+W Browser-Shortcut** — Verhindert versehentliches Tab-Schließen während Terminal-Sessions:
-  - Chrome/Edge: `preventDefault()` blockiert den Browser-Shortcut direkt
-  - Firefox: Bestätigungsdialog bei aktiven Sessions + dedizierter „Strg+W"-Button im Terminal
+- **Ctrl+W Browser-Shortcut** — Verhindert versehentliches Tab-Schließen während Terminal-Sessions
+  (erster Anlauf; vollständig gelöst erst in v1.3.0, siehe oben)
 - **Logout-Fix** — `beforeunload`-Handler wird beim Logout korrekt deaktiviert
 - **UI-Korrekturen** — Alle deutschen Umlaute in der UI korrigiert (ö, ä, ü statt oe, ae, ue)
 
@@ -197,14 +243,15 @@ Themes werden per `localStorage` gespeichert und wirken sich auf die gesamte UI,
 
 | Komponente | Technologie |
 |---|---|
-| **Frontend** | Vanilla JavaScript, xterm.js, Ace Editor, Socket.io Client |
+| **Frontend** | Vanilla JavaScript, xterm.js, Ace Editor, Socket.io Client (alle lokal unter `public/vendor/`) |
 | **Backend** | Node.js 20, Express, Socket.io, ssh2 |
 | **Datenbank** | SQLite (better-sqlite3, WAL-Modus, automatische Migrationen) |
 | **Authentifizierung** | bcrypt, express-session, Optional: ldapjs (Active Directory) |
 | **Sicherheit** | helmet, crypto (AES-256-GCM), express-rate-limit |
 | **Echtzeit** | Socket.io (Terminal I/O, SFTP, Stats, Skripte, Sharing) |
 | **Deployment** | Docker, Docker Compose |
-| **Fonts** | Inter (UI), JetBrains Mono (Terminal/Code) |
+| **Fonts** | Inter (UI), JetBrains Mono (Terminal/Code) — selbst gehostet, kein Google-Fonts-Abruf |
+| **Offline** | Keine externen CDNs/Hosts nötig — der Betrieb funktioniert ohne Internetzugang |
 
 ---
 
@@ -295,6 +342,7 @@ Die Anwendung ist dann unter **http://localhost:2222** erreichbar.
 | `DB_PATH` | `/app/data/database.sqlite` | Pfad zur SQLite-Datenbank |
 | `SCRIPTS_PATH` | `/app/scripts` | Pfad zur Skript-Bibliothek |
 | `SESSION_SECRET` | auto-generiert | Session-Verschlüsselungsschlüssel (wird auch für AES-Verschlüsselung der SSH-Credentials verwendet) |
+| `TZ` | `UTC` | Zeitzone des Containers. Nur für Logausgaben relevant — zeitgesteuerte Befehle richten sich immer nach der Zeitzone des Browsers |
 
 ### Active Directory / LDAP (optional)
 
@@ -389,9 +437,14 @@ webSSHadmin/
 │   ├── css/main.css          # Alle Styles (Theme-fähig via CSS-Variablen)
 │   ├── css/
 │   │   ├── main.css          # Alle Styles inkl. Multiview-Wizard (Theme-fähig)
-│   │   └── multiview.css     # Stile für die eigenständige Multiview-Seite
+│   │   ├── multiview.css     # Stile für die eigenständige Multiview-Seite
+│   │   └── mobile.css        # Stile der mobilen Oberfläche (unabhängig von main.css)
 │   ├── js/
 │   │   ├── app.js            # Hauptinitialisierung, Socket-Events, Rollen-Logik
+│   │   ├── schedules.js      # Zeitgesteuerte Befehle (Reiter im Teilen-Popup)
+│   │   ├── mobile.js         # Mobile App: Sessions, Terminal, Menüs, Sharing, Chat
+│   │   ├── mobile-keys.js    # Sondertasten-Leiste + Sticky-Modifier
+│   │   ├── mobile-sftp.js    # Mobiler SFTP-Browser
 │   │   ├── multiview-wizard.js # Wizard-Logik (Session-Auswahl, Layout-Picker, D&D)
 │   │   ├── multiview.js      # Multiview-Seite: Grid, Terminal-Attach, Resize-Handles
 │   │   ├── terminal.js       # xterm.js Terminal-Verwaltung
@@ -409,15 +462,23 @@ webSSHadmin/
 │   │   ├── sharing.js        # Session-Sharing (Token, Rollen)
 │   │   ├── auth.js           # Passwort-Änderung, Logout
 │   │   └── login.js          # Login-Formular (Lokal / AD)
-│   ├── vendor/               # xterm.js, Socket.io Client
+│   ├── vendor/               # Alle Fremd-Assets lokal (kein CDN nötig)
+│   │   ├── xterm*.js         # Terminal-Emulator + Addons
+│   │   ├── socket.io.js      # Socket.io Client
+│   │   ├── ace/              # Ace-Editor inkl. Modes, Themes und Workern
+│   │   └── fonts/            # Inter + JetBrains Mono als woff2 + fonts.css
+│   ├── icons/                # PWA-Icons (192/512 px, maskable)
 │   ├── app.html              # Hauptseite (nach Login)
+│   ├── mobile.html           # Mobile Oberfläche (/m)
 │   ├── multiview.html        # Eigenständige Multiview-Seite
 │   ├── index.html            # Login-Seite
+│   ├── manifest.json         # PWA-Manifest
+│   ├── sw.js                 # Service Worker (nur Installierbarkeit, kein Cache)
 │   └── favicon.svg           # Neon-Gradient Favicon
 ├── server/
 │   ├── index.js              # Express-Server, Middleware, Socket.io
 │   ├── config.js             # Konfiguration, Session-Secret-Generierung
-│   ├── db.js                 # SQLite-Schema, Migrationen (9 Migrationen)
+│   ├── db.js                 # SQLite-Schema, Migrationen (14 Migrationen)
 │   ├── auth.js               # requireAuth, requireRole Middleware
 │   ├── routes/
 │   │   ├── auth.js           # Login (Lokal + AD), Logout, Passwort ändern
@@ -428,17 +489,20 @@ webSSHadmin/
 │   │   ├── quickCommands.js  # CRUD Quick Commands + Kategorien
 │   │   ├── scripts.js        # Skript-Upload + Baum
 │   │   ├── ports.js          # Port-Scanner API
-│   │   └── sharing.js        # Share-Token erstellen, validieren, verwalten
+│   │   ├── sharing.js        # Share-Token erstellen, validieren, verwalten
+│   │   └── schedules.js      # Zeitgesteuerte Befehle (CRUD + Testlauf)
 │   ├── socket/
 │   │   ├── index.js          # Socket-Handler-Registrierung
 │   │   ├── terminalHandler.js # Session-Verwaltung, Terminal I/O, Credential-Merge
 │   │   ├── sftpHandler.js    # SFTP-Operationen
 │   │   ├── statsHandler.js   # Statistik-Events
+│   │   ├── chatHandler.js    # Chat in geteilten Sessions
 │   │   └── scriptHandler.js  # Remote-Skript-Ausführung
 │   └── services/
 │       ├── sessionManager.js # SSH-Sessions, Auto-Reconnect, Tunnels, Sharing
 │       ├── sshConnection.js  # SSH2-Client-Aufbau
 │       ├── adAuth.js         # Active Directory / LDAP Authentifizierung
+│       ├── commandScheduler.js # Ticker für zeitgesteuerte Befehle (IANA-Zeitzonen)
 │       ├── statsPoller.js    # CPU/RAM/Disk Polling via SSH
 │       ├── portScanner.js    # Port-Scan (ss/netstat + Docker API)
 │       ├── encryption.js     # AES-256-GCM Verschlüsselung

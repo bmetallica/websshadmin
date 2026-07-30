@@ -7,8 +7,6 @@
   <title>webSSHadmin</title>
   <link rel="stylesheet" href="/vendor/xterm.css">
   <link rel="stylesheet" href="/css/main.css">
-  <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 </head>
 <body>
   <!-- Header -->
@@ -41,6 +39,17 @@
           <div class="settings-section">
             <div class="settings-section-title">Darstellung</div>
             <div class="theme-list" id="settingsThemeList"></div>
+          </div>
+          <div class="settings-section">
+            <div class="settings-section-title">Terminal</div>
+            <label class="settings-item settings-check" id="settingsAltAsCtrl">
+              <input type="checkbox" id="chkAltAsCtrl" checked>
+              <span>Alt als Strg-Ersatz (Alt+W = Strg+W)</span>
+            </label>
+            <div class="settings-item" id="settingsMobileView">
+              <span class="settings-icon">&#128241;</span>
+              <span>Mobile Ansicht</span>
+            </div>
           </div>
           <div class="settings-section">
             <div class="settings-section-title">Konto</div>
@@ -117,6 +126,28 @@
       </div>
       <div class="sidebar-footer">
         <div id="scriptDropZone" class="drop-zone">Dateien hierher ziehen</div>
+      </div>
+
+      <!-- Chat Panel (visible when #sidebarRight has .chat-active) -->
+      <div class="chat-panel" id="chatPanel">
+        <div class="chat-panel-header">
+          <span>Chat</span>
+        </div>
+        <!-- Name prompt (viewer/coworker only, one-time) -->
+        <div class="chat-name-prompt" id="chatNamePrompt" style="display:none">
+          <div class="chat-name-prompt-inner">
+            <p>Dein Name im Chat</p>
+            <input type="text" id="chatNameInput" maxlength="50" placeholder="Name eingeben..." autocomplete="off">
+            <button id="btnChatSetName">Weiter &#10148;</button>
+          </div>
+        </div>
+        <!-- Messages list -->
+        <div class="chat-messages" id="chatMessages"></div>
+        <!-- Input area -->
+        <div class="chat-input-area" id="chatInputArea" style="display:none">
+          <input type="text" id="chatInput" maxlength="2000" placeholder="Nachricht..." autocomplete="off">
+          <button id="btnChatSend" title="Senden">&#10148;</button>
+        </div>
       </div>
     </aside>
 
@@ -417,22 +448,74 @@
     </div>
   </div>
 
-  <!-- Share modal -->
+  <!-- Share modal (Freigaben + zeitgesteuerte Befehle) -->
   <div id="shareModalOverlay" class="modal-overlay" style="display:none">
     <div class="modal modal-share">
       <div class="user-modal-header">
         <h3>Session teilen</h3>
         <button class="btn-icon" id="btnCloseShareModal" title="Schliessen">&times;</button>
       </div>
-      <div class="share-create-row">
-        <select id="shareRole">
-          <option value="viewer">Viewer (nur zusehen)</option>
-          <option value="coworker">Coworker (gemeinsam arbeiten)</option>
-        </select>
-        <input type="text" id="shareLabel" placeholder="Bezeichnung (optional)" autocomplete="off">
-        <button class="btn-confirm" id="btnCreateShare">Freigabe erstellen</button>
+
+      <div class="modal-tabs">
+        <button class="modal-tab active" data-pane="sharePaneShares">Freigaben</button>
+        <button class="modal-tab" data-pane="sharePaneSchedules">Zeitgesteuerte Befehle</button>
       </div>
-      <div class="share-list" id="shareList"></div>
+
+      <!-- Pane 1: Freigaben -->
+      <div id="sharePaneShares" class="modal-pane">
+        <div class="share-create-row">
+          <select id="shareRole">
+            <option value="viewer">Viewer (nur zusehen)</option>
+            <option value="coworker">Coworker (gemeinsam arbeiten)</option>
+          </select>
+          <input type="text" id="shareLabel" placeholder="Bezeichnung (optional)" autocomplete="off">
+          <button class="btn-confirm" id="btnCreateShare">Freigabe erstellen</button>
+        </div>
+        <div class="share-list" id="shareList"></div>
+      </div>
+
+      <!-- Pane 2: Zeitgesteuerte Befehle -->
+      <div id="sharePaneSchedules" class="modal-pane" style="display:none">
+        <form id="schedForm" class="sched-form">
+          <div class="form-row">
+            <div class="form-group">
+              <label>Bezeichnung (optional)</label>
+              <input type="text" id="schedLabel" placeholder="z.B. Nachtjob" autocomplete="off">
+            </div>
+            <div class="form-group">
+              <label>Ausführung</label>
+              <select id="schedType">
+                <option value="once">Einmalig</option>
+                <option value="daily">Täglich</option>
+              </select>
+            </div>
+          </div>
+          <div class="form-group">
+            <label>Befehl / Text (eine Zeile = eine Eingabe)</label>
+            <textarea id="schedCommand" rows="2" placeholder="das ist ein test" required></textarea>
+          </div>
+          <div class="form-row">
+            <div class="form-group" id="schedOnceGroup">
+              <label>Zeitpunkt</label>
+              <input type="datetime-local" id="schedRunAt">
+            </div>
+            <div class="form-group" id="schedDailyGroup" style="display:none">
+              <label>Uhrzeit (täglich)</label>
+              <input type="time" id="schedTimeOfDay">
+            </div>
+          </div>
+          <div class="sched-options">
+            <label><input type="checkbox" id="schedSendEnter" checked> mit Enter bestätigen</label>
+            <label><input type="checkbox" id="schedMarkTerminal" checked> Ausführung im Terminal markieren</label>
+          </div>
+          <div class="modal-actions">
+            <span class="sched-tz" id="schedTzHint"></span>
+            <button type="submit" class="btn-confirm">Zeitplan anlegen</button>
+          </div>
+          <div class="error" id="schedError" style="display:none"></div>
+        </form>
+        <div class="share-list" id="schedList"></div>
+      </div>
     </div>
   </div>
 
@@ -658,7 +741,7 @@
     </div>
   </div>
 
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/ace/1.36.5/ace.js"></script>
+  <script src="/vendor/ace/ace.js"></script>
   <script src="/vendor/xterm.js"></script>
   <script src="/vendor/xterm-addon-fit.js"></script>
   <script src="/vendor/xterm-addon-web-links.js"></script>
@@ -676,7 +759,9 @@
   <script src="/js/usermen.js"></script>
   <script src="/js/groupmen.js"></script>
   <script src="/js/sharing.js"></script>
+  <script src="/js/schedules.js"></script>
   <script src="/js/bookmarks.js"></script>
+  <script src="/js/chat.js"></script>
   <script src="/js/multiview-wizard.js"></script>
   <script src="/js/app.js"></script>
 </body>

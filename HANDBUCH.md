@@ -19,10 +19,12 @@ Vollständige Anleitung zur Installation, Administration und Nutzung.
 8. [SFTP Dateibrowser](#8-sftp-dateibrowser)
 9. [Skript-Manager](#9-skript-manager)
 10. [Session-Sharing](#10-session-sharing)
-11. [Bookmarks](#11-bookmarks)
-12. [Port Dashboard](#12-port-dashboard)
-13. [Active Directory / Windows AD](#13-active-directory--windows-ad)
-14. [Sicherheitshinweise](#14-sicherheitshinweise)
+11. [Zeitgesteuerte Befehle](#11-zeitgesteuerte-befehle)
+12. [Mobile Oberfläche](#12-mobile-oberfläche)
+13. [Bookmarks](#13-bookmarks)
+14. [Port Dashboard](#14-port-dashboard)
+15. [Active Directory / Windows AD](#15-active-directory--windows-ad)
+16. [Sicherheitshinweise](#16-sicherheitshinweise)
 
 ---
 
@@ -311,15 +313,41 @@ Das Suchfeld oben in der Sidebar filtert nach Name, Host und Username in Echtzei
 | `Ctrl+W` | Wort vor dem Cursor löschen |
 | `Ctrl+U` | Zeile bis zum Anfang löschen |
 
-### Ctrl+W in Firefox
+### Ctrl+W und andere blockierte Browser-Kürzel
 
-Firefox fängt `Ctrl+W` ab und schließt den Browser-Tab, bevor die Tastenkombination das Terminal erreicht.
+`Ctrl+W`, `Ctrl+T` und `Ctrl+N` sind in **allen** gängigen Browsern (Chrome, Edge, Firefox) fest für den
+Browser reserviert. Sie erreichen die Webseite gar nicht erst bzw. lassen sich nicht abfangen — beim
+Versuch, in nano mit `Strg+W` zu suchen, schließt sich stattdessen der Tab.
 
-**Lösung:** Unten rechts im Terminal befindet sich ein **„Strg+W"**-Button. Klick darauf sendet das `Ctrl+W`-Zeichen direkt an die Terminal-Session (z.B. um in nano die Suche zu öffnen).
+Dafür gibt es drei Wege:
 
-Zusätzlich erscheint bei aktiven Sessions ein Bestätigungsdialog wenn versucht wird den Tab zu schließen, um versehentlichen Datenverlust zu verhindern.
+**1. Alt statt Strg (empfohlen)**
 
-> In Chrome und anderen Chromium-basierten Browsern funktioniert `Ctrl+W` im Terminal direkt — kein Button nötig.
+`Alt+<Buchstabe>` sendet den entsprechenden Control-Code ans Terminal:
+
+| Eingabe | wirkt wie | typischer Einsatz |
+|---|---|---|
+| `Alt+W` | `Strg+W` | nano: Suchen |
+| `Alt+X` | `Strg+X` | nano: Beenden |
+| `Alt+O` | `Strg+O` | nano: Speichern |
+| `Alt+T` | `Strg+T` | — |
+| `Alt+N` | `Strg+N` | — |
+
+Das funktioniert für jeden Buchstaben und in jedem Browser. Abschalten lässt es sich unter
+**Einstellungen → Terminal → „Alt als Strg-Ersatz"** (z.B. wenn echte Meta-Tastenkombinationen in
+`emacs` gebraucht werden). `AltGr` (= Strg+Alt) bleibt unangetastet, `@`, `|` und `~` funktionieren normal.
+
+**2. Der „Strg+W"-Button**
+
+Unten rechts im Terminal sitzt ein **„Strg+W"**-Button, der das Zeichen direkt an die Session schickt.
+Er ist jetzt in allen Browsern verfügbar (früher nur in Firefox).
+
+**3. Schutz vor Datenverlust**
+
+Solange mindestens eine Session offen ist, fragt der Browser beim Schließen des Tabs nach. Ein
+versehentliches `Strg+W` beendet die Session also nicht mehr unbemerkt.
+
+> In der mobilen Oberfläche gibt es dafür eine eigene Taste `^W` in der Sondertasten-Leiste.
 
 ### Auto-Reconnect
 
@@ -464,7 +492,122 @@ Der Session-Besitzer kann einen Viewer nachträglich zum Coworker hochstufen:
 
 ---
 
-## 11. Bookmarks
+## 11. Zeitgesteuerte Befehle
+
+Ein Befehl oder beliebiger Text kann zu einem festen Zeitpunkt automatisch in eine laufende Session
+getippt werden — z.B. „führe heute um 02:23 Uhr `systemctl restart nginx` aus".
+
+Die Verwaltung liegt im selben Popup wie das Teilen: **Teilen-Icon** am Tab → Reiter
+**„Zeitgesteuerte Befehle"**.
+
+### Zeitplan anlegen
+
+1. **Bezeichnung** (optional) — erscheint in der Liste und im Ausführungsmarker, z.B. „Nachtjob"
+2. **Befehl / Text** — mehrzeilige Eingabe möglich; jede Zeile wird nacheinander gesendet
+3. **Ausführung**:
+   - **Einmalig** — Datum + Uhrzeit auswählen; danach gilt der Zeitplan als erledigt
+   - **Täglich** — Uhrzeit auswählen; wird jeden Tag ausgeführt, solange die Session läuft
+4. **mit Enter bestätigen** (Standard: an) — ohne diese Option wird der Text nur in die Eingabezeile
+   geschrieben, aber nicht ausgeführt
+5. **Ausführung im Terminal markieren** (Standard: an) — schreibt eine farbige Zeile
+   `--- geplanter Befehl ausgeführt: <Bezeichnung> ---` ins Terminal
+6. **Zeitplan anlegen**
+
+### Zeitzone
+
+Die Uhrzeit gilt immer in der **Zeitzone des Browsers** — sie wird beim Anlegen mitgeschickt und unter
+dem Formular angezeigt (z.B. „Zeitzone: Europe/Berlin"). Es spielt also keine Rolle, ob der Container
+auf UTC läuft: „02:23 Uhr" ist 02:23 Uhr Ortszeit. Sommer-/Winterzeitwechsel werden bei täglichen
+Zeitplänen automatisch berücksichtigt.
+
+> Sonderfall Zeitumstellung: Fällt eine tägliche Uhrzeit in die im Frühjahr übersprungene Stunde
+> (in Deutschland 02:00–03:00), wird der Befehl an diesem einen Tag um die entsprechend verschobene
+> Zeit ausgeführt.
+
+### Zeitpläne verwalten
+
+Jeder Eintrag in der Liste zeigt Bezeichnung, Befehl, Status und die nächste Ausführung:
+
+| Symbol | Funktion |
+|---|---|
+| ▶ | **Jetzt ausführen** — Testlauf; verbraucht einen Einmal-Termin nicht |
+| ❚❚ | **Pausieren** — Zeitplan bleibt erhalten, wird aber nicht ausgeführt |
+| ↻ | **Wieder aktivieren** — auch für bereits erledigte Einmal-Termine |
+| × | **Löschen** |
+
+Statusanzeige: `geplant` · `täglich` · `erledigt` · `pausiert` · `Fehler`
+
+### Grenzen
+
+- Zeitpläne sind an die **Session** gebunden: wird die Session getrennt oder der Server neu gestartet,
+  werden sie gelöscht
+- Nur der **Session-Besitzer** kann Zeitpläne sehen und anlegen — Viewer und Coworker sehen lediglich
+  das Ergebnis im Terminal
+- Die Genauigkeit liegt bei etwa ±5 Sekunden (der Server prüft im 5-Sekunden-Takt)
+- Maximale Befehlslänge: 4000 Zeichen
+
+---
+
+## 12. Mobile Oberfläche
+
+Für Smartphones gibt es eine eigene, touch-optimierte Oberfläche unter **`/m`**. Die normale
+Desktop-Ansicht bleibt davon vollständig unberührt.
+
+### Aufruf
+
+Smartphones werden automatisch auf `/m` geleitet. Die Wahl lässt sich jederzeit umschalten:
+
+- **Mobil → Desktop:** Menü **⋮** → „Desktop-Ansicht"
+- **Desktop → Mobil:** Einstellungen (Zahnrad) → „Mobile Ansicht"
+
+Die Entscheidung wird ein Jahr lang per Cookie gemerkt — ein Tablet oder Laptop bekommt also immer
+die Ansicht, die zuletzt gewählt wurde.
+
+### Bedienung
+
+| Element | Funktion |
+|---|---|
+| **☰** oben links | Verbindungsliste (mit Suche); Tippen verbindet |
+| **Titel** in der Mitte | Liste der offenen Sessions; Wechseln oder Trennen |
+| **⌨** | Bildschirmtastatur öffnen (Android reagiert nicht immer auf Antippen des Terminals) |
+| **⋮** oben rechts | SFTP, Teilen & Zeitpläne, Chat, Schriftgröße, Theme, Trennen, Logout |
+
+### Sondertasten-Leiste
+
+Unterhalb des Terminals liegt eine Leiste mit allem, was Handy-Tastaturen nicht bieten. Beide Reihen
+sind horizontal scrollbar, die zweite Reihe wird über **…** ein- und ausgeblendet.
+
+- **Reihe 1:** `Esc` `Tab` `Strg` `Alt` `←` `↑` `↓` `→` `Entf` `Pos1` `Ende` `Bild↑` `Bild↓`
+- **Reihe 2:** `^C` `^D` `^W` `^Z` `^R` `^L` `^X` `^O` `|` `~` `/` `\` `-` `_` `*` `$` `F1`–`F12`
+
+**Strg und Alt sind Umschalttasten:**
+
+- **Kurz antippen** → gilt für die *nächste* Taste, danach fällt der Modifier zurück.
+  Das wirkt auch auf die Bildschirmtastatur: `Strg` antippen und dann `c` tippen sendet `Strg+C`.
+- **Lang drücken** (ca. eine halbe Sekunde) → rastet ein (Taste leuchtet ausgefüllt), bis erneut
+  lang gedrückt wird.
+- Mit aktivem `Strg` oder `Alt` senden auch die Pfeiltasten die passenden Kombinationen
+  (z.B. `Strg+→` für wortweises Springen).
+
+### Bildschirmtastatur
+
+Das Layout folgt der eingeblendeten Tastatur automatisch — Terminal und Tastenleiste bleiben sichtbar.
+Pull-to-Refresh und Doppeltipp-Zoom sind deaktiviert, damit nichts versehentlich die Session stört.
+
+### Als App installieren
+
+Im Browser-Menü **„Zum Startbildschirm hinzufügen"** wählen. Die App startet dann in einem eigenen
+Fenster ohne Browserleiste. Es wird bewusst nichts offline zwischengespeichert: ein Terminal ist ohne
+Serververbindung nutzlos, und ein Cache würde nach einem Update veraltete Dateien festhalten.
+
+### Nicht enthalten
+
+Quick Commands, Skript-Manager, Port-Dashboard, Multiview sowie Benutzer- und Gruppenverwaltung sind
+der Desktop-Ansicht vorbehalten. Über „Desktop-Ansicht" sind sie auch vom Handy aus erreichbar.
+
+---
+
+## 13. Bookmarks
 
 Bookmarks sind Links zu externen Tools und Webseiten (z.B. Monitoring, Router-Webinterfaces, Wikis).
 
@@ -483,7 +626,7 @@ Bookmarks sind Links zu externen Tools und Webseiten (z.B. Monitoring, Router-We
 
 ---
 
-## 12. Port Dashboard
+## 14. Port Dashboard
 
 Das Port Dashboard zeigt alle belegten Netzwerk-Ports des Docker-Hosts.
 
@@ -514,7 +657,7 @@ Das Dashboard aktualisiert sich automatisch alle 10 Sekunden. Manuell kann mit d
 
 ---
 
-## 13. Active Directory / Windows AD
+## 15. Active Directory / Windows AD
 
 Die Anwendung unterstützt optionale Authentifizierung über Active Directory / LDAP. Benutzer können sich mit ihren Domain-Zugangsdaten einloggen — es ist kein separates Konto in der Anwendung nötig.
 
@@ -662,7 +805,7 @@ docker compose logs -f web-ssh
 
 ---
 
-## 14. Sicherheitshinweise
+## 16. Sicherheitshinweise
 
 ### Standard-Passwort ändern
 

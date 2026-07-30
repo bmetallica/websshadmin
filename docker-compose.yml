@@ -1,11 +1,14 @@
 services:
   web-ssh:
-    image: bmetallica/websshadmin:latest
+    image: 192.168.66.12:5000/websshadmin:latest
     network_mode: host
     environment:
       - PORT=2222
       - DB_PATH=/app/data/database.sqlite
       - SCRIPTS_PATH=/app/scripts
+      # Zeitzone des Containers (nur für Logausgaben – zeitgesteuerte Befehle
+      # richten sich immer nach der Zeitzone des Browsers)
+      - TZ=Europe/Berlin
       # SSO / Active Directory (optional - auf true setzen zum Aktivieren)
       - AD_ENABLED=false
       # - AD_URL=ldap://dc.example.com

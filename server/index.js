@@ -18,12 +18,16 @@ app.use(helmet({
   contentSecurityPolicy: {
     useDefaults: false,
     directives: {
+      // Alle Assets (Ace-Editor, Schriften) liegen lokal unter /vendor –
+      // der webSSHadmin läuft damit vollständig ohne Internetzugang.
       defaultSrc: ["'self'"],
-      scriptSrc: ["'self'", "https://cdnjs.cloudflare.com", "https://fonts.googleapis.com"],
-      styleSrc: ["'self'", "'unsafe-inline'", "https://fonts.googleapis.com"],
-      fontSrc: ["'self'", "https://fonts.gstatic.com"],
+      scriptSrc: ["'self'", "blob:"], // ace startet seine Syntax-Worker über Blob-URLs
+      styleSrc: ["'self'", "'unsafe-inline'"],
+      fontSrc: ["'self'"],
       connectSrc: ["'self'", "ws:", "wss:"],
       imgSrc: ["'self'", "data:"],
+      manifestSrc: ["'self'"],
+      workerSrc: ["'self'", "blob:"],
       baseUri: ["'self'"],
       formAction: ["'self'"],
       frameAncestors: ["'self'"],
@@ -59,15 +63,36 @@ app.use(sessionMiddleware);
 // Trust first proxy (for rate limiting behind reverse proxy)
 app.set('trust proxy', 1);
 
+// --- Mobile-Erkennung ---------------------------------------------------
+// Smartphones bekommen /m ausgeliefert, alles andere die unveränderte Desktop-UI.
+// Cookie viewMode=desktop|mobile übersteuert die Erkennung dauerhaft.
+const MOBILE_UA = /Android|iPhone|iPod|Windows Phone|BlackBerry|Opera Mini|IEMobile/i;
+
+function _viewMode(req) {
+  const cookie = req.headers.cookie || '';
+  const match = /(?:^|;\s*)viewMode=(desktop|mobile)/.exec(cookie);
+  return match ? match[1] : null;
+}
+
+function wantsMobile(req) {
+  const mode = _viewMode(req);
+  if (mode) return mode === 'mobile';
+  return MOBILE_UA.test(req.headers['user-agent'] || '');
+}
+
+function _query(req) {
+  return req.originalUrl.includes('?') ? req.originalUrl.substring(req.originalUrl.indexOf('?')) : '';
+}
+
 // Public routes (login page)
 app.get('/', (req, res) => {
-  const qs = req.originalUrl.includes('?') ? req.originalUrl.substring(req.originalUrl.indexOf('?')) : '';
+  const qs = _query(req);
   if (req.session && req.session.authenticated) {
-    return res.redirect('/app' + qs);
+    return res.redirect((wantsMobile(req) ? '/m' : '/app') + qs);
   }
-  // If share token present, redirect directly to /app (no login needed)
+  // If share token present, redirect directly to the app (no login needed)
   if (req.query.share) {
-    return res.redirect('/app' + qs);
+    return res.redirect((wantsMobile(req) ? '/m' : '/app') + qs);
   }
   res.sendFile(path.join(__dirname, '..', 'public', 'index.html'));
 });
@@ -82,6 +107,10 @@ app.use('/api/auth', require('./routes/auth'));
 
 // App page - allow access with share token (no auth needed) or with auth
 app.get('/app', (req, res) => {
+  // Smartphone ohne ausdrücklichen Desktop-Wunsch -> mobile Oberfläche
+  if (wantsMobile(req)) {
+    return res.redirect('/m' + _query(req));
+  }
   // Allow if authenticated
   if (req.session && req.session.authenticated) {
     return res.sendFile(path.join(__dirname, '..', 'public', 'app.html'));
@@ -94,8 +123,33 @@ app.get('/app', (req, res) => {
     }
   }
   // Otherwise redirect to login preserving query params
-  const qs = req.originalUrl.includes('?') ? req.originalUrl.substring(req.originalUrl.indexOf('?')) : '';
-  return res.redirect('/' + qs);
+  return res.redirect('/' + _query(req));
+});
+
+// Mobile app page – gleiche Zugriffsregeln wie /app
+app.get('/m', (req, res) => {
+  if (_viewMode(req) === 'desktop') {
+    return res.redirect('/app' + _query(req));
+  }
+  if (req.session && req.session.authenticated) {
+    return res.sendFile(path.join(__dirname, '..', 'public', 'mobile.html'));
+  }
+  if (req.query.share) {
+    const shareRow = db.prepare('SELECT 1 FROM share_tokens WHERE token = ?').get(req.query.share);
+    if (shareRow) {
+      return res.sendFile(path.join(__dirname, '..', 'public', 'mobile.html'));
+    }
+  }
+  return res.redirect('/' + _query(req));
+});
+
+// PWA: Manifest + Service Worker müssen im Root-Scope liegen
+app.get('/manifest.json', (req, res) => {
+  res.sendFile(path.join(__dirname, '..', 'public', 'manifest.json'));
+});
+app.get('/sw.js', (req, res) => {
+  res.set('Cache-Control', 'no-cache');
+  res.sendFile(path.join(__dirname, '..', 'public', 'sw.js'));
 });
 
 // Multiview page – authenticated users only
@@ -115,11 +169,13 @@ app.use('/api/ports', requireAuth, require('./routes/ports'));
 app.use('/api/users', requireAuth, require('./routes/users'));
 app.use('/api/sharing', requireAuth, require('./routes/sharing'));
 app.use('/api/groups', requireAuth, require('./routes/groups'));
+app.use('/api/schedules', requireAuth, require('./routes/schedules'));
 
 // Static files (only authenticated access for js/css is not needed since login page uses them too)
 app.use('/css', express.static(path.join(__dirname, '..', 'public', 'css')));
 app.use('/js', express.static(path.join(__dirname, '..', 'public', 'js')));
 app.use('/vendor', express.static(path.join(__dirname, '..', 'public', 'vendor')));
+app.use('/icons', express.static(path.join(__dirname, '..', 'public', 'icons')));
 
 // Socket.io with session sharing
 const io = new Server(server, {
@@ -161,6 +217,9 @@ require('./socket/index')(io);
 // Start script watcher for live file updates
 const scriptWatcher = require('./services/scriptWatcher');
 scriptWatcher.start(io);
+
+// Start scheduler for time-triggered commands
+require('./services/commandScheduler').start();
 
 server.listen(config.port, '0.0.0.0', () => {
   console.log(`webSSHadmin running on http://0.0.0.0:${config.port}`);

@@ -2,6 +2,7 @@ const terminalHandler = require('./terminalHandler');
 const statsHandler = require('./statsHandler');
 const scriptHandler = require('./scriptHandler');
 const sftpHandler = require('./sftpHandler');
+const chatHandler = require('./chatHandler');
 
 module.exports = function (io) {
   io.on('connection', (socket) => {
@@ -11,6 +12,7 @@ module.exports = function (io) {
     statsHandler(io, socket);
     scriptHandler(io, socket);
     sftpHandler(io, socket);
+    chatHandler.handler(io, socket);
 
     socket.on('disconnect', () => {
       console.log(`Socket disconnected: ${socket.id}`);

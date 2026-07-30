@@ -15,8 +15,8 @@ RUN npm install --production
 # Remove build-only deps (keep libstdc++ for runtime)
 RUN apk del python3 make g++ gcc libc-dev 2>/dev/null || true
 
-# Runtime tools for port scanner
-RUN apk add --no-cache iproute2 curl
+# Runtime tools for port scanner + Zeitzonendaten (sonst ignoriert Alpine die TZ-Variable)
+RUN apk add --no-cache iproute2 curl tzdata
 
 # Copy application code
 COPY server/ ./server/

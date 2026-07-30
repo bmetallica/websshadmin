@@ -1,0 +1,214 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+  <meta name="theme-color" content="#0a0e1a">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="webSSH">
+  <link rel="icon" type="image/svg+xml" href="/favicon.svg">
+  <link rel="apple-touch-icon" href="/icons/icon-192.png">
+  <link rel="manifest" href="/manifest.json">
+  <title>webSSHadmin mobil</title>
+  <link rel="stylesheet" href="/vendor/xterm.css">
+  <link rel="stylesheet" href="/css/mobile.css">
+</head>
+<body>
+  <div id="mApp">
+    <!-- Kopfzeile -->
+    <header id="mTop">
+      <button class="m-top-btn" id="mBtnMenu" aria-label="Verbindungen">&#9776;</button>
+      <button class="m-title" id="mTitle">
+        <span id="mTitleText">Keine Session</span>
+        <span class="m-caret">&#9662;</span>
+      </button>
+      <button class="m-top-btn" id="mBtnKeyboard" aria-label="Tastatur">&#9000;</button>
+      <button class="m-top-btn" id="mBtnMore" aria-label="Menü">&#8942;</button>
+    </header>
+
+    <!-- Statuszeile -->
+    <div id="mStats" class="m-stats">
+      <span id="mStatCpu">CPU --</span>
+      <span id="mStatRam">RAM --</span>
+      <span id="mStatDisk">DISK --</span>
+      <span id="mStatHost" class="m-stat-host"></span>
+    </div>
+
+    <!-- Terminalbereich -->
+    <main id="mTerminalArea">
+      <div id="mTerminals"></div>
+      <div id="mNoSession" class="m-no-session">
+        <p class="m-no-session-title">Keine aktive Session</p>
+        <p>Tippe oben links auf &#9776; und wähle eine Verbindung.</p>
+      </div>
+    </main>
+
+    <!-- Sondertasten -->
+    <div id="mKeys" class="m-keys" style="display:none">
+      <div class="m-keys-row" id="mKeysRow1"></div>
+      <div class="m-keys-row m-keys-row2" id="mKeysRow2" style="display:none"></div>
+    </div>
+  </div>
+
+  <!-- Verbindungs-Schublade -->
+  <div class="m-overlay m-overlay-drawer" id="mDrawerOverlay" style="display:none">
+    <aside class="m-drawer" id="mDrawer">
+      <div class="m-sheet-head">
+        <span>Verbindungen</span>
+        <button class="m-sheet-close" data-close="mDrawerOverlay">&times;</button>
+      </div>
+      <input type="search" class="m-search" id="mConnSearch" placeholder="Suchen..." autocomplete="off">
+      <div class="m-list" id="mConnList"></div>
+    </aside>
+  </div>
+
+  <!-- Session-Auswahl -->
+  <div class="m-overlay" id="mTabsOverlay" style="display:none">
+    <div class="m-sheet" id="mTabsSheet">
+      <div class="m-sheet-head">
+        <span>Sessions</span>
+        <button class="m-sheet-close" data-close="mTabsOverlay">&times;</button>
+      </div>
+      <div class="m-list" id="mTabsList"></div>
+    </div>
+  </div>
+
+  <!-- Aktionsmenü -->
+  <div class="m-overlay" id="mMenuOverlay" style="display:none">
+    <div class="m-sheet" id="mMenuSheet">
+      <div class="m-sheet-head">
+        <span>Menü</span>
+        <button class="m-sheet-close" data-close="mMenuOverlay">&times;</button>
+      </div>
+      <div class="m-list">
+        <button class="m-menu-item" id="mMenuSftp"><span>&#128193;</span> SFTP-Dateibrowser</button>
+        <button class="m-menu-item" id="mMenuShare"><span>&#8644;</span> Teilen &amp; Zeitpläne</button>
+        <button class="m-menu-item" id="mMenuChat"><span>&#128172;</span> Chat <span class="m-badge" id="mChatBadge" style="display:none"></span></button>
+        <button class="m-menu-item" id="mMenuFontMinus"><span>A&minus;</span> Schrift verkleinern</button>
+        <button class="m-menu-item" id="mMenuFontPlus"><span>A+</span> Schrift vergrößern</button>
+        <button class="m-menu-item" id="mMenuTheme"><span>&#127912;</span> Theme wechseln</button>
+        <button class="m-menu-item" id="mMenuDisconnect"><span>&#9211;</span> Session trennen</button>
+        <button class="m-menu-item" id="mMenuDesktop"><span>&#128421;</span> Desktop-Ansicht</button>
+        <button class="m-menu-item" id="mMenuLogout"><span>&#128682;</span> Logout</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- SFTP -->
+  <div class="m-overlay m-overlay-full" id="mSftpOverlay" style="display:none">
+    <div class="m-full">
+      <div class="m-sheet-head">
+        <span>SFTP</span>
+        <button class="m-sheet-close" data-close="mSftpOverlay">&times;</button>
+      </div>
+      <div class="m-sftp-nav">
+        <button class="m-btn-sm" id="mSftpUp">&#9650;</button>
+        <button class="m-btn-sm" id="mSftpHome">&#127968;</button>
+        <button class="m-btn-sm" id="mSftpRefresh">&#8635;</button>
+        <input type="text" id="mSftpPath" class="m-search" value="/" autocomplete="off">
+        <button class="m-btn-sm" id="mSftpUpload">&#11014;</button>
+        <input type="file" id="mSftpUploadInput" multiple style="display:none">
+      </div>
+      <div class="m-list" id="mSftpList"></div>
+      <div class="m-status" id="mSftpStatus">Bereit</div>
+    </div>
+  </div>
+
+  <!-- Teilen & Zeitpläne -->
+  <div class="m-overlay m-overlay-full" id="mShareOverlay" style="display:none">
+    <div class="m-full">
+      <div class="m-sheet-head">
+        <span>Teilen &amp; Zeitpläne</span>
+        <button class="m-sheet-close" data-close="mShareOverlay">&times;</button>
+      </div>
+      <div class="m-tabs">
+        <button class="m-tab active" data-pane="mPaneShares">Freigaben</button>
+        <button class="m-tab" data-pane="mPaneSched">Zeitpläne</button>
+      </div>
+
+      <div id="mPaneShares" class="m-pane">
+        <div class="m-form">
+          <select id="mShareRole">
+            <option value="viewer">Viewer (nur zusehen)</option>
+            <option value="coworker">Coworker (mitarbeiten)</option>
+          </select>
+          <input type="text" id="mShareLabel" placeholder="Bezeichnung (optional)" autocomplete="off">
+          <button class="m-btn" id="mBtnCreateShare">Freigabe erstellen</button>
+        </div>
+        <div class="m-list" id="mShareList"></div>
+      </div>
+
+      <div id="mPaneSched" class="m-pane" style="display:none">
+        <form class="m-form" id="mSchedForm">
+          <input type="text" id="mSchedLabel" placeholder="Bezeichnung (optional)" autocomplete="off">
+          <textarea id="mSchedCommand" rows="2" placeholder="Befehl / Text" required></textarea>
+          <select id="mSchedType">
+            <option value="once">Einmalig</option>
+            <option value="daily">Täglich</option>
+          </select>
+          <input type="datetime-local" id="mSchedRunAt">
+          <input type="time" id="mSchedTimeOfDay" style="display:none">
+          <label class="m-check"><input type="checkbox" id="mSchedSendEnter" checked> mit Enter bestätigen</label>
+          <label class="m-check"><input type="checkbox" id="mSchedMark" checked> im Terminal markieren</label>
+          <button class="m-btn" type="submit">Zeitplan anlegen</button>
+          <div class="m-error" id="mSchedError" style="display:none"></div>
+        </form>
+        <div class="m-list" id="mSchedList"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Chat -->
+  <div class="m-overlay m-overlay-full" id="mChatOverlay" style="display:none">
+    <div class="m-full">
+      <div class="m-sheet-head">
+        <span>Chat</span>
+        <button class="m-sheet-close" data-close="mChatOverlay">&times;</button>
+      </div>
+      <div class="m-chat-messages" id="mChatMessages"></div>
+      <div class="m-chat-input">
+        <input type="text" id="mChatInput" maxlength="2000" placeholder="Nachricht..." autocomplete="off">
+        <button class="m-btn-sm" id="mChatSend">&#10148;</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Login-Daten für Gruppenverbindungen -->
+  <div class="m-overlay" id="mCredOverlay" style="display:none">
+    <div class="m-sheet">
+      <div class="m-sheet-head">
+        <span>Login-Daten</span>
+        <button class="m-sheet-close" data-close="mCredOverlay">&times;</button>
+      </div>
+      <form class="m-form" id="mCredForm">
+        <p class="m-hint" id="mCredInfo"></p>
+        <input type="hidden" id="mCredConnId">
+        <input type="text" id="mCredUsername" placeholder="Username" autocomplete="username">
+        <select id="mCredAuthMethod">
+          <option value="password">Passwort</option>
+          <option value="key">Private Key</option>
+        </select>
+        <input type="password" id="mCredPassword" placeholder="Passwort" autocomplete="current-password">
+        <textarea id="mCredPrivateKey" rows="3" placeholder="Private Key" style="display:none"></textarea>
+        <input type="password" id="mCredPassphrase" placeholder="Passphrase" style="display:none">
+        <label class="m-check"><input type="checkbox" id="mCredSave" checked> Login-Daten speichern</label>
+        <button class="m-btn" type="submit">Verbinden</button>
+        <div class="m-error" id="mCredError" style="display:none"></div>
+      </form>
+    </div>
+  </div>
+
+  <div class="m-toast" id="mToast" style="display:none"></div>
+
+  <script src="/vendor/xterm.js"></script>
+  <script src="/vendor/xterm-addon-fit.js"></script>
+  <script src="/vendor/xterm-addon-web-links.js"></script>
+  <script src="/vendor/socket.io.js"></script>
+  <script src="/js/theme.js"></script>
+  <script src="/js/mobile-keys.js"></script>
+  <script src="/js/mobile-sftp.js"></script>
+  <script src="/js/mobile.js"></script>
+</body>
+</html>
