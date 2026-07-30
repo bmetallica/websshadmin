@@ -87,30 +87,42 @@ const MobileApp = (() => {
       helper.setAttribute('spellcheck', 'false');
     }
 
+    // Modifier werden hier angewandt, NICHT in attachCustomKeyEventHandler:
+    // Android-Tastaturen liefern für normale Zeichen kein auswertbares keydown
+    // (key = "Unidentified", keyCode 229) – der Text kommt erst über das
+    // input-Event des Textfeldes und damit in onData an.
     term.onData((data) => {
       const entry = terms.get(sessionId);
       if (entry && entry.readOnly) return;
-      socket.emit('terminal:data', { sessionId, data });
+      socket.emit('terminal:data', { sessionId, data: applyPendingMods(data) });
     });
     term.onResize(({ cols, rows }) => {
       socket.emit('terminal:resize', { sessionId, cols, rows });
     });
 
-    // Modifier aus der Tastenleiste auch auf die Bildschirmtastatur anwenden
-    term.attachCustomKeyEventHandler((e) => {
+    term.attachCustomKeyEventHandler(() => {
       const entry = terms.get(sessionId);
-      if (entry && entry.readOnly) return false;
-      if (e.type !== 'keydown' || !MobileKeys.hasMods()) return true;
-      if (e.key.length !== 1) return true;
-      e.preventDefault();
-      socket.emit('terminal:data', { sessionId, data: MobileKeys.applyMods(e.key) });
-      MobileKeys.consume();
-      return false;
+      return !(entry && entry.readOnly);
     });
 
     terms.set(sessionId, { term, fitAddon, container: div, readOnly: false });
     setTimeout(() => fit(sessionId), 60);
     return term;
+  }
+
+  // Wendet ein wartendes Strg/Alt aus der Tastenleiste auf getippten Text an.
+  // Nur Einzelzeichen: Escape-Sequenzen (Pfeile o.ä.) bleiben unangetastet.
+  function applyPendingMods(data) {
+    if (!MobileKeys.hasMods() || data.length !== 1) return data;
+    const out = MobileKeys.applyMods(data);
+    MobileKeys.consume();
+    return out;
+  }
+
+  function focusTerminal() {
+    if (!activeId) return;
+    const entry = terms.get(activeId);
+    if (entry) entry.term.focus();
   }
 
   function fit(sessionId) {
@@ -722,7 +734,7 @@ const MobileApp = (() => {
   // ------------------------------------------------------------------- Init
   function init() {
     Theme.init();
-    MobileKeys.init(sendData);
+    MobileKeys.init(sendData, focusTerminal);
     MobileSftp.init(socket);
 
     if (window.visualViewport) {
@@ -739,9 +751,7 @@ const MobileApp = (() => {
       loadConnections();
     });
     $('mTitle').addEventListener('click', () => { renderTabs(); openOverlay('mTabsOverlay'); });
-    $('mBtnKeyboard').addEventListener('click', () => {
-      if (activeId) terms.get(activeId).term.focus();
-    });
+    $('mBtnKeyboard').addEventListener('click', focusTerminal);
     $('mBtnMore').addEventListener('click', () => openOverlay('mMenuOverlay'));
 
     // Overlays schließen
@@ -920,5 +930,5 @@ const MobileApp = (() => {
 
   document.addEventListener('DOMContentLoaded', init);
 
-  return { fitActive, sendData, toast };
+  return { fitActive, sendData, toast, applyPendingMods, focusTerminal };
 })();

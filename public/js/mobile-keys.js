@@ -56,8 +56,9 @@ const MobileKeys = {
     { label: 'F12', data: '\x1b[24~' },
   ],
 
-  init(sendFn) {
+  init(sendFn, refocusFn) {
     this._send = sendFn;
+    this._refocus = refocusFn;
     this._row1 = document.getElementById('mKeysRow1');
     this._row2 = document.getElementById('mKeysRow2');
     this._build(this._row1, this.ROW1);
@@ -70,40 +71,67 @@ const MobileKeys = {
       btn.className = 'm-key' + (key.mod ? ' m-key-mod' : '') + (key.wide ? ' m-key-wide' : '');
       btn.textContent = key.label;
       btn.dataset.mod = key.mod || '';
+      // Der Button darf den Fokus nicht bekommen, sonst schließt Android die Tastatur
+      btn.tabIndex = -1;
+
+      this._bind(btn, key);
+      container.appendChild(btn);
+    }
+  },
+
+  // Pointer-Events statt touch+mouse: Ein Fingertipp löst sonst erst die Touch-
+  // und danach die synthetischen Maus-Events aus – ein Modifier würde dadurch
+  // zweimal umgeschaltet und wäre sofort wieder aus.
+  _bind(btn, key) {
+    const hasPointer = typeof window !== 'undefined' && 'PointerEvent' in window;
+    let longPress = null;
+
+    const down = (e) => {
+      // Verhindert Fokuswechsel (Tastatur bliebe sonst nicht offen) und
+      // die Erzeugung zusätzlicher Maus-Events
+      if (e && e.cancelable) e.preventDefault();
+      if (!key.mod) return;
+      longPress = setTimeout(() => {
+        longPress = null;
+        this._lockMod(key.mod);
+      }, 450);
+    };
+
+    const up = (e) => {
+      if (e && e.cancelable) e.preventDefault();
 
       if (key.mod) {
-        // Kurz tippen = für die nächste Taste, lang drücken = feststellen
-        let longPress = null;
-        const startPress = () => {
-          longPress = setTimeout(() => {
-            longPress = null;
-            this._lockMod(key.mod);
-          }, 450);
-        };
-        const endPress = (e) => {
-          if (longPress) {
-            clearTimeout(longPress);
-            longPress = null;
-            e.preventDefault();
-            this._toggleMod(key.mod);
-          }
-        };
-        btn.addEventListener('touchstart', startPress, { passive: true });
-        btn.addEventListener('touchend', endPress);
-        btn.addEventListener('mousedown', startPress);
-        btn.addEventListener('mouseup', endPress);
+        if (longPress) {
+          clearTimeout(longPress);
+          longPress = null;
+          this._vibrate();
+          this._toggleMod(key.mod);
+        }
       } else if (key.toggleRow2) {
-        btn.addEventListener('click', () => {
-          const hidden = this._row2.style.display === 'none';
-          this._row2.style.display = hidden ? '' : 'none';
-          btn.classList.toggle('active', hidden);
-          if (typeof MobileApp !== 'undefined') MobileApp.fitActive();
-        });
+        const hidden = this._row2.style.display === 'none';
+        this._row2.style.display = hidden ? '' : 'none';
+        btn.classList.toggle('active', hidden);
+        if (typeof MobileApp !== 'undefined') MobileApp.fitActive();
       } else {
-        btn.addEventListener('click', () => this.press(key));
+        this.press(key);
       }
 
-      container.appendChild(btn);
+      // Fokus zurück ans Terminal, damit die Bildschirmtastatur offen bleibt
+      if (this._refocus) this._refocus();
+    };
+
+    const cancel = () => {
+      if (longPress) { clearTimeout(longPress); longPress = null; }
+    };
+
+    if (hasPointer) {
+      btn.addEventListener('pointerdown', down);
+      btn.addEventListener('pointerup', up);
+      btn.addEventListener('pointercancel', cancel);
+      btn.addEventListener('pointerleave', cancel);
+    } else {
+      btn.addEventListener('mousedown', down);
+      btn.addEventListener('mouseup', up);
     }
   },
 
