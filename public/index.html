@@ -42,7 +42,7 @@
       border: 1px solid rgba(0, 234, 255, 0.15);
       border-radius: 12px;
       padding: 48px 40px;
-      width: 380px;
+      width: min(380px, calc(100vw - 32px));
       box-shadow: 0 16px 64px rgba(0, 0, 0, 0.5), 0 0 40px rgba(0, 234, 255, 0.08);
       backdrop-filter: blur(20px);
       z-index: 1;
@@ -93,6 +93,12 @@
       box-shadow: 0 0 0 2px rgba(0, 234, 255, 0.1), 0 0 20px rgba(0, 234, 255, 0.15);
     }
     .form-group input::placeholder { color: rgba(130, 145, 170, 0.4); }
+    /* Smartphones: schmalere Box, und 16px Eingabeschrift, damit iOS nicht
+       beim Fokussieren automatisch hineinzoomt. Desktop bleibt unverändert. */
+    @media (max-width: 480px) {
+      .login-box { padding: 32px 20px; }
+      .form-group input { font-size: 16px; }
+    }
     .btn {
       width: 100%;
       padding: 12px;
