@@ -244,7 +244,7 @@ Themes werden per `localStorage` gespeichert und wirken sich auf die gesamte UI,
 | Komponente | Technologie |
 |---|---|
 | **Frontend** | Vanilla JavaScript, xterm.js, Ace Editor, Socket.io Client (alle lokal unter `public/vendor/`) |
-| **Backend** | Node.js 20, Express, Socket.io, ssh2 |
+| **Backend** | Node.js 24, Express, Socket.io, ssh2 |
 | **Datenbank** | SQLite (better-sqlite3, WAL-Modus, automatische Migrationen) |
 | **Authentifizierung** | bcrypt, express-session, Optional: ldapjs (Active Directory) |
 | **Sicherheit** | helmet, crypto (AES-256-GCM), express-rate-limit |

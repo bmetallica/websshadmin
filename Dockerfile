@@ -1,4 +1,4 @@
-FROM node:20-alpine
+FROM node:24-alpine
 
 # Install build dependencies for native modules (ssh2, better-sqlite3)
 # libstdc++ is needed at runtime by native addons
